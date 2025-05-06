@@ -18,7 +18,7 @@ interface LocationSearchProps {
 declare global {
   interface Window {
     google: any;
-    initGooglePlaces: () => void;
+    initGooglePlaces?: () => void;
   }
 }
 

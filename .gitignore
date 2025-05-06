@@ -1,0 +1,7 @@
+# Node
+node_modules/
+.next/
+.env*
+dist/
+# OS
+.DS_Store

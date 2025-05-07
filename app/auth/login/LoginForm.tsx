@@ -1,42 +1,38 @@
+// app/auth/login/LoginForm.tsx
 "use client";
-export const dynamic = "force-dynamic";
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/providers/AuthProvider";
 
-export default function LoginPage() {
-  const [email, setEmail] = useState("");
+export default function LoginForm() {
+  const [email, setEmail]     = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { signIn } = useAuth();
+  const router                = useRouter();
+  const searchParams          = useSearchParams();
+  const { signIn }            = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       const { error } = await signIn(email, password);
-      
       if (error) {
         setError(error.message);
         return;
       }
-
-      // Redirect to the page they came from or dashboard
       const nextUrl = searchParams.get("next") || "/";
       router.push(nextUrl);
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -109,4 +105,4 @@ export default function LoginPage() {
       </div>
     </div>
   );
-} 
+}

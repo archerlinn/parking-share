@@ -21,7 +21,7 @@ export default function RenterMapPage() {
   const { parkingLots, loading } = useParking();
 
   // store as [lat, lng]
-  const [center, setCenter] = useState<[number, number] | null>(null);
+  const [center, setCenter] = useState<[number, number] | undefined>(undefined);
 
   const handleLocationSelect = (loc: {
     address: string;

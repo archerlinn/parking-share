@@ -408,23 +408,24 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
         .from('bookings')
         .insert([{
           parking_lot_id: parkingLotId,
-          renter_id: renterId,
-          start_time: startTime.toISOString(),
-          duration: hours,
-          price: totalPrice,
-          status: 'pending'
+          renter_id:    renterId,
+          start_time:   startTime.toISOString(),
+          duration:     hours,
+          price:        totalPrice,
+          status:       'pending'
         }])
         .select(`
           *,
           parking_lots (
             street,
             city,
-            state
+            state,
+            owner_id,    
+            users (     
+              name
+            )
           ),
-          renters:users!renter_id (
-            name
-          ),
-          owners:users!parking_lots.owner_id (
+          renters:users!bookings_renter_id ( 
             name
           )
         `)
@@ -432,20 +433,21 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
 
       if (error) throw error;
 
+      // now `data` is properly typed, and you can access:
       const newBooking: Booking = {
-        id: data.id,
-        parkingLotId: data.parking_lot_id,
+        id:               data.id,
+        parkingLotId:     data.parking_lot_id,
         parkingLotAddress: `${data.parking_lots.street}, ${data.parking_lots.city}, ${data.parking_lots.state}`,
-        renterId: data.renter_id,
-        renterName: data.renters.name,
-        ownerId: data.owners.id,
-        ownerName: data.owners.name,
-        startTime: data.start_time,
-        duration: data.duration,
-        price: data.price,
-        status: data.status
+        renterId:         data.renter_id,
+        renterName:       data.renters.name,
+        ownerId:          data.parking_lots.owner_id,
+        ownerName:        data.parking_lots.users.name,
+        startTime:        data.start_time,
+        duration:         data.duration,
+        price:            data.price,
+        status:           data.status,
       };
-      
+          
       setBookings(prev => [...prev, newBooking]);
       return newBooking;
     } catch (error) {
@@ -537,32 +539,34 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
             street,
             city,
             state,
-            owner_id
+            owner_id,
+            users (
+              name
+            )
           ),
-          renters:users!renter_id (
-            name
-          ),
-          owners:users!parking_lots.owner_id (
+          renters:users!bookings_renter_id (
             name
           )
         `)
         .or(`renter_id.eq.${userId},parking_lots.owner_id.eq.${userId}`);
 
+
       if (error) throw error;
 
       const formattedBookings: Booking[] = data.map(booking => ({
-        id: booking.id,
-        parkingLotId: booking.parking_lot_id,
-        parkingLotAddress: `${booking.parking_lots.street}, ${booking.parking_lots.city}, ${booking.parking_lots.state}`,
-        renterId: booking.renter_id,
-        renterName: booking.renters.name,
-        ownerId: booking.parking_lots.owner_id,
-        ownerName: booking.owners.name,
-        startTime: booking.start_time,
-        duration: booking.duration,
-        price: booking.price,
-        status: booking.status
+        id:               booking.id,
+        parkingLotId:     booking.parking_lot_id,
+        parkingLotAddress:`${booking.parking_lots.street}, ${booking.parking_lots.city}, ${booking.parking_lots.state}`,
+        renterId:         booking.renter_id,
+        renterName:       booking.renters.name,
+        ownerId:          booking.parking_lots.owner_id,
+        ownerName:        booking.parking_lots.users.name,
+        startTime:        booking.start_time,
+        duration:         booking.duration,
+        price:            booking.price,
+        status:           booking.status as Booking['status'],
       }));
+      
 
       setBookings(formattedBookings);
       return formattedBookings;

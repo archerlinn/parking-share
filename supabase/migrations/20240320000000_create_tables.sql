@@ -1,6 +1,22 @@
+-- Drop existing tables if they exist
+drop table if exists public.bookings;
+drop table if exists public.parking_lots;
+drop table if exists public.users;
+
+-- Drop existing policies if they exist
+drop policy if exists "Users can read own data" on public.users;
+drop policy if exists "Users can insert own profile" on public.users;
+drop policy if exists "Users can update own profile" on public.users;
+drop policy if exists "Anyone can read parking lots" on public.parking_lots;
+drop policy if exists "Owners can insert own parking lots" on public.parking_lots;
+drop policy if exists "Owners can update own parking lots" on public.parking_lots;
+drop policy if exists "Users can read own bookings" on public.bookings;
+drop policy if exists "Renters can insert bookings" on public.bookings;
+drop policy if exists "Users can update own bookings" on public.bookings;
+
 -- Create users table
 create table if not exists public.users (
-  id uuid default auth.uid() primary key,
+  id uuid primary key references auth.users on delete cascade,
   email text unique not null,
   name text not null,
   phone text,
@@ -41,44 +57,57 @@ create table if not exists public.bookings (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Add RLS policies
+-- Enable RLS
 alter table public.users enable row level security;
 alter table public.parking_lots enable row level security;
 alter table public.bookings enable row level security;
 
--- Users can read their own data
-create policy "Users can read own data" on public.users
-  for select using (auth.uid() = id);
+-- Users policies
+create policy "Enable read access for own profile"
+  on public.users for select
+  using (auth.uid() = id);
 
--- Anyone can read parking lots
-create policy "Anyone can read parking lots" on public.parking_lots
-  for select using (true);
+create policy "Enable insert access for own profile"
+  on public.users for insert
+  with check (auth.uid() = id);
 
--- Owners can insert and update their own parking lots
-create policy "Owners can insert own parking lots" on public.parking_lots
-  for insert with check (auth.uid() = owner_id);
-create policy "Owners can update own parking lots" on public.parking_lots
-  for update using (auth.uid() = owner_id);
+create policy "Enable update access for own profile"
+  on public.users for update
+  using (auth.uid() = id);
 
--- Users can read their own bookings
-create policy "Users can read own bookings" on public.bookings
-  for select using (
+-- Parking lots policies
+create policy "Enable read access for all parking lots"
+  on public.parking_lots for select
+  using (true);
+
+create policy "Enable insert access for owners"
+  on public.parking_lots for insert
+  with check (auth.uid() = owner_id);
+
+create policy "Enable update access for owners"
+  on public.parking_lots for update
+  using (auth.uid() = owner_id);
+
+-- Bookings policies
+create policy "Enable read access for own bookings"
+  on public.bookings for select
+  using (
     auth.uid() = renter_id or 
     auth.uid() = (select owner_id from public.parking_lots where id = parking_lot_id)
   );
 
--- Renters can insert bookings
-create policy "Renters can insert bookings" on public.bookings
-  for insert with check (auth.uid() = renter_id);
+create policy "Enable insert access for renters"
+  on public.bookings for insert
+  with check (auth.uid() = renter_id);
 
--- Users can update their own bookings
-create policy "Users can update own bookings" on public.bookings
-  for update using (
+create policy "Enable update access for involved users"
+  on public.bookings for update
+  using (
     auth.uid() = renter_id or 
     auth.uid() = (select owner_id from public.parking_lots where id = parking_lot_id)
   );
 
--- Create indexes for better performance
+-- Create indexes
 create index if not exists parking_lots_owner_id_idx on public.parking_lots(owner_id);
 create index if not exists parking_lots_location_idx on public.parking_lots(city, state, zip_code);
 create index if not exists bookings_parking_lot_id_idx on public.bookings(parking_lot_id);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '../../../components/layout/Layout';
 import Button from '../../../components/ui/Button';
@@ -10,11 +10,13 @@ import Card from '../../../components/ui/Card';
 import LocationSearch from '../../../components/ui/LocationSearch';
 import { useAuth } from '../../../providers/AuthProvider';
 import { useParking } from '../../../providers/ParkingProvider';
+import Image from 'next/image';
 
 export default function RegisterParkingLotPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { addParkingLot, loading } = useParking();
+  const { addParkingLot, uploadPhoto, loading } = useParking();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     street: '',
@@ -32,6 +34,8 @@ export default function RegisterParkingLotPage() {
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
   
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -41,6 +45,39 @@ export default function RegisterParkingLotPage() {
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+
+    console.log('Selected file:', file.name, 'Size:', file.size, 'Type:', file.type);
+
+    // Preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewUrl(reader.result as string);
+      console.log('Preview URL set successfully');
+    };
+    reader.readAsDataURL(file);
+
+    // Upload
+    try {
+      setUploadingPhoto(true);
+      console.log('Starting photo upload...');
+      const photoUrl = await uploadPhoto(file);
+      console.log('Photo uploaded successfully:', photoUrl);
+      setFormData(prev => ({ ...prev, photoUrl }));
+      setErrors(prev => ({ ...prev, photo: '' }));
+    } catch (error) {
+      console.error('Detailed upload error:', error);
+      setErrors(prev => ({ ...prev, photo: `Failed to upload photo: ${error instanceof Error ? error.message : 'Unknown error'}` }));
+    } finally {
+      setUploadingPhoto(false);
     }
   };
   
@@ -117,7 +154,7 @@ export default function RegisterParkingLotPage() {
       ownerId: user.id,
       ownerName: user.name,
       ownerEmail: user.email,
-      ownerPhone: '555-123-4567', // Placeholder
+      ownerPhone: user.phone || '',
       address: {
         street: formData.street,
         city: formData.city,
@@ -136,16 +173,19 @@ export default function RegisterParkingLotPage() {
       amenities: amenitiesArray,
     };
     
-    const newParkingLot = await addParkingLot(parkingLotData);
-    
-    if (newParkingLot) {
-      setSuccessMessage('Parking lot registered successfully! Redirecting...');
-      setTimeout(() => {
-        router.push('/owner/dashboard');
-      }, 2000);
-    } else {
+    try {
+      const newParkingLot = await addParkingLot(parkingLotData);
+      
+      if (newParkingLot) {
+        setSuccessMessage('Parking lot registered successfully! Redirecting...');
+        setTimeout(() => {
+          router.push('/owner/dashboard');
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error registering parking lot:', error);
       setErrors({
-        form: 'Failed to register parking lot. Please try again.',
+        form: `Failed to register parking lot: ${error instanceof Error ? error.message : 'Please try again.'}`,
       });
     }
   };
@@ -216,12 +256,56 @@ export default function RegisterParkingLotPage() {
                   </div>
                 ) : (
                   <form className="space-y-6" onSubmit={handleSubmit}>
-                    <div className="space-y-6 pt-4">
-                      <h3 className="text-lg font-medium leading-6 text-gray-900">Location Information</h3>
-                      
-                      <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
-                        <div className="sm:col-span-6">
+                    <div className="space-y-6">
+                      {/* Photo Upload Section */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Parking Lot Photo
+                        </label>
+                        <div className="mt-2 flex items-center gap-x-3">
+                          {previewUrl ? (
+                            <div className="relative h-32 w-32">
+                              <Image
+                                src={previewUrl}
+                                alt="Parking lot preview"
+                                fill
+                                className="rounded-lg object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-32 w-32 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                              <span className="text-gray-500 text-sm text-center">
+                                No photo uploaded
+                              </span>
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadingPhoto}
+                          >
+                            {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
+                          </Button>
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handlePhotoChange}
+                          />
+                        </div>
+                        {errors.photo && (
+                          <p className="mt-2 text-sm text-red-600">{errors.photo}</p>
+                        )}
+                      </div>
+
+                      {/* Location Section */}
+                      <div>
+                        <h3 className="text-lg font-medium leading-6 text-gray-900">Location Information</h3>
+                        <div className="mt-4 space-y-4">
                           <LocationSearch
+                            defaultValue={formData.street}
                             onLocationSelect={(location) => {
                               setFormData(prev => ({
                                 ...prev,
@@ -233,196 +317,164 @@ export default function RegisterParkingLotPage() {
                                 latitude: location.latitude.toString(),
                                 longitude: location.longitude.toString(),
                               }));
-                              // Clear any location-related errors
-                              setErrors(prev => {
-                                const newErrors = {...prev};
-                                delete newErrors.street;
-                                delete newErrors.city;
-                                delete newErrors.state;
-                                delete newErrors.zipCode;
-                                delete newErrors.latitude;
-                                delete newErrors.longitude;
-                                return newErrors;
-                              });
                             }}
                             error={errors.street}
                           />
-                        </div>
 
-                        <div className="sm:col-span-3">
-                          <Input
-                            id="street"
-                            name="street"
-                            type="text"
-                            label="Street address"
-                            value={formData.street}
-                            onChange={handleChange}
-                            error={errors.street}
-                            fullWidth
-                            disabled
-                          />
-                        </div>
-                        
-                        <div className="sm:col-span-3">
-                          <Input
-                            id="city"
-                            name="city"
-                            type="text"
-                            label="City"
-                            value={formData.city}
-                            onChange={handleChange}
-                            error={errors.city}
-                            fullWidth
-                            disabled
-                          />
-                        </div>
-                        
-                        <div className="sm:col-span-2">
-                          <Input
-                            id="state"
-                            name="state"
-                            type="text"
-                            label="State / Province"
-                            value={formData.state}
-                            onChange={handleChange}
-                            error={errors.state}
-                            fullWidth
-                            disabled
-                          />
-                        </div>
-                        
-                        <div className="sm:col-span-2">
-                          <Input
-                            id="zipCode"
-                            name="zipCode"
-                            type="text"
-                            label="ZIP / Postal code"
-                            value={formData.zipCode}
-                            onChange={handleChange}
-                            error={errors.zipCode}
-                            fullWidth
-                            disabled
-                          />
-                        </div>
-                        
-                        <div className="sm:col-span-2">
-                          <Input
-                            id="country"
-                            name="country"
-                            type="text"
-                            label="Country"
-                            value={formData.country}
-                            onChange={handleChange}
-                            fullWidth
-                            disabled
-                          />
+                          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
+                            <div className="sm:col-span-2">
+                              <Input
+                                id="city"
+                                name="city"
+                                type="text"
+                                label="City"
+                                value={formData.city}
+                                onChange={handleChange}
+                                error={errors.city}
+                                fullWidth
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <Input
+                                id="state"
+                                name="state"
+                                type="text"
+                                label="State"
+                                value={formData.state}
+                                onChange={handleChange}
+                                error={errors.state}
+                                fullWidth
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <Input
+                                id="zipCode"
+                                name="zipCode"
+                                type="text"
+                                label="ZIP Code"
+                                value={formData.zipCode}
+                                onChange={handleChange}
+                                error={errors.zipCode}
+                                fullWidth
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-6 pt-6">
-                      <h3 className="text-lg font-medium leading-6 text-gray-900">Coordinates</h3>
+                      <div className="space-y-6 pt-6">
+                        <h3 className="text-lg font-medium leading-6 text-gray-900">Coordinates</h3>
+                        
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
+                          <div className="sm:col-span-3">
+                            <Input
+                              id="latitude"
+                              name="latitude"
+                              type="text"
+                              label="Latitude"
+                              value={formData.latitude}
+                              onChange={handleChange}
+                              error={errors.latitude}
+                              fullWidth
+                              disabled
+                            />
+                          </div>
+                          
+                          <div className="sm:col-span-3">
+                            <Input
+                              id="longitude"
+                              name="longitude"
+                              type="text"
+                              label="Longitude"
+                              value={formData.longitude}
+                              onChange={handleChange}
+                              error={errors.longitude}
+                              fullWidth
+                              disabled
+                            />
+                          </div>
+                        </div>
+                      </div>
                       
-                      <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
-                        <div className="sm:col-span-3">
-                          <Input
-                            id="latitude"
-                            name="latitude"
-                            type="text"
-                            label="Latitude"
-                            value={formData.latitude}
-                            onChange={handleChange}
-                            error={errors.latitude}
-                            fullWidth
-                            disabled
-                          />
-                        </div>
-                        
-                        <div className="sm:col-span-3">
-                          <Input
-                            id="longitude"
-                            name="longitude"
-                            type="text"
-                            label="Longitude"
-                            value={formData.longitude}
-                            onChange={handleChange}
-                            error={errors.longitude}
-                            fullWidth
-                            disabled
-                          />
-                        </div>
+                      <div className="sm:col-span-6">
+                        <TextArea
+                          id="instructions"
+                          name="instructions"
+                          rows={4}
+                          label="Access Instructions"
+                          placeholder="Provide detailed instructions on how to access your parking lot..."
+                          value={formData.instructions}
+                          onChange={handleChange}
+                          error={errors.instructions}
+                          fullWidth
+                        />
                       </div>
-                    </div>
-                    
-                    <div className="sm:col-span-6">
-                      <TextArea
-                        id="instructions"
-                        name="instructions"
-                        rows={4}
-                        label="Access Instructions"
-                        placeholder="Provide detailed instructions on how to access your parking lot..."
-                        value={formData.instructions}
-                        onChange={handleChange}
-                        error={errors.instructions}
-                        fullWidth
-                      />
-                    </div>
-                    
-                    <div className="sm:col-span-3">
-                      <Input
-                        id="pricePerHour"
-                        name="pricePerHour"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        label="Price per Hour ($)"
-                        value={formData.pricePerHour}
-                        onChange={handleChange}
-                        error={errors.pricePerHour}
-                        fullWidth
-                      />
-                    </div>
-                    
-                    <div className="sm:col-span-3">
-                      <Input
-                        id="amenities"
-                        name="amenities"
-                        type="text"
-                        label="Amenities"
-                        placeholder="Covered, EV Charging, 24/7 Access, etc."
-                        value={formData.amenities}
-                        onChange={handleChange}
-                        fullWidth
-                      />
-                      <p className="mt-1 text-sm text-gray-500">
-                        Comma-separated list of amenities
-                      </p>
-                    </div>
-                    
-                    <div className="sm:col-span-6">
-                      <Input
-                        id="photoUrl"
-                        name="photoUrl"
-                        type="url"
-                        label="Photo URL (optional)"
-                        placeholder="https://example.com/image.jpg"
-                        value={formData.photoUrl}
-                        onChange={handleChange}
-                        fullWidth
-                      />
-                    </div>
-                    
-                    {errors.form && (
-                      <div className="text-sm text-red-600">{errors.form}</div>
-                    )}
-                    
-                    <div className="mt-8 flex justify-end">
-                      <Button type="button" variant="outline" className="mr-4" onClick={() => router.push('/')}>
-                        Cancel
-                      </Button>
-                      <Button type="submit" isLoading={loading}>
-                        Register Parking Lot
-                      </Button>
+                      
+                      <div className="sm:col-span-3">
+                        <Input
+                          id="pricePerHour"
+                          name="pricePerHour"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          label="Price per Hour ($)"
+                          value={formData.pricePerHour}
+                          onChange={handleChange}
+                          error={errors.pricePerHour}
+                          fullWidth
+                        />
+                      </div>
+                      
+                      <div className="sm:col-span-3">
+                        <Input
+                          id="amenities"
+                          name="amenities"
+                          type="text"
+                          label="Amenities"
+                          placeholder="Covered, EV Charging, 24/7 Access, etc."
+                          value={formData.amenities}
+                          onChange={handleChange}
+                          fullWidth
+                        />
+                        <p className="mt-1 text-sm text-gray-500">
+                          Comma-separated list of amenities
+                        </p>
+                      </div>
+                      
+                      <div className="sm:col-span-6">
+                        <Input
+                          id="photoUrl"
+                          name="photoUrl"
+                          type="url"
+                          label="Photo URL (optional)"
+                          placeholder="https://example.com/image.jpg"
+                          value={formData.photoUrl}
+                          onChange={handleChange}
+                          fullWidth
+                        />
+                      </div>
+                      
+                      {errors.form && (
+                        <div className="text-sm text-red-600">{errors.form}</div>
+                      )}
+                      
+                      <div className="flex justify-end gap-x-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => router.back()}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={loading || uploadingPhoto}
+                        >
+                          {loading ? 'Registering...' : 'Register Parking Lot'}
+                        </Button>
+                      </div>
                     </div>
                   </form>
                 )}

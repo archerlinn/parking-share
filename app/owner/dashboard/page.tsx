@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Layout from '../../components/layout/Layout';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -14,11 +13,7 @@ export default function OwnerDashboardPage() {
   const { user, profile } = useAuth();
   const {
     myParkingLots,
-    bookings,
     updateParkingLotAvailability,
-    confirmBooking,
-    declineBooking,
-    loading
   } = useParking();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
@@ -27,18 +22,6 @@ export default function OwnerDashboardPage() {
     setLoadingStates(prev => ({ ...prev, [id]: true }));
     await updateParkingLotAvailability(id, !current);
     setLoadingStates(prev => ({ ...prev, [id]: false }));
-  };
-
-  // Confirm / decline booking
-  const handleConfirm = async (bookingId: string) => {
-    setLoadingStates(prev => ({ ...prev, [bookingId]: true }));
-    await confirmBooking(bookingId);
-    setLoadingStates(prev => ({ ...prev, [bookingId]: false }));
-  };
-  const handleDecline = async (bookingId: string) => {
-    setLoadingStates(prev => ({ ...prev, [bookingId]: true }));
-    await declineBooking(bookingId);
-    setLoadingStates(prev => ({ ...prev, [bookingId]: false }));
   };
 
   // 1) not signed in:
@@ -91,99 +74,32 @@ export default function OwnerDashboardPage() {
     );
   }
 
-  // 3) owner content
-  const pendingBookings = bookings.filter(
-    b =>
-      b.status === 'pending' &&
-      myParkingLots.some(lot => lot.id === b.parkingLotId)
-  );
-
+  // 3) owner content: no in-line pending requests any more
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
+
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                My Parking Lots
-              </h1>
+              <h1 className="text-3xl font-bold text-gray-900">My Parking Lots</h1>
               <p className="mt-2 text-lg text-gray-600">
-                Manage your parking spaces and bookings.
+                Manage your parking spaces.
               </p>
             </div>
-            <div className="mt-4 md:mt-0">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button onClick={() => router.push('/owner/parking-lot/register')}>
                 Add New Parking Lot
+              </Button>
+              <Button variant="outline" onClick={() => router.push('/owner/bookings')}>
+                View Booking Requests
               </Button>
             </div>
           </div>
 
-          {/* Pending Requests */}
-          {pendingBookings.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Pending Booking Requests
-              </h2>
-              <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {pendingBookings.map(booking => {
-                  const lot = myParkingLots.find(l => l.id === booking.parkingLotId);
-                  if (!lot) return null;
-                  return (
-                    <Card key={booking.id} className="overflow-hidden">
-                      <div className="p-6">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          Booking Request
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          {new Date(booking.startTime).toLocaleString()} –{' '}
-                          {new Date(new Date(booking.startTime).getTime() + booking.duration * 60 * 60 * 1000).toLocaleString()}
-                        </p>
-                        <div className="mt-4">
-                          <p className="text-sm font-medium text-gray-900">Parking Lot:</p>
-                          <p className="text-sm text-gray-600">
-                            {lot.address.street}, {lot.address.city}
-                          </p>
-                        </div>
-                        <div className="mt-2">
-                          <p className="text-sm font-medium text-gray-900">Price:</p>
-                          <p className="text-sm text-gray-600">
-                            ${booking.price.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="mt-6 flex space-x-3">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => handleDecline(booking.id)}
-                            isLoading={loadingStates[booking.id]}
-                          >
-                            Decline
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => handleConfirm(booking.id)}
-                            isLoading={loadingStates[booking.id]}
-                          >
-                            Accept
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Parking Lots List */}
           <div className="mt-8">
-            <h2 className="text-xl font-semibold text-gray-900">
-              My Parking Lots ({myParkingLots.length})
-            </h2>
-
             {myParkingLots.length === 0 ? (
               <Card className="mt-4 p-6 text-center">
                 <p className="text-gray-600">You haven't registered any parking lots yet.</p>
@@ -194,7 +110,7 @@ export default function OwnerDashboardPage() {
                 </div>
               </Card>
             ) : (
-              <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {myParkingLots.map(lot => (
                   <Card key={lot.id} className="overflow-hidden" hover>
                     {lot.photoUrl ? (
@@ -232,9 +148,7 @@ export default function OwnerDashboardPage() {
                       <p className="mt-1 text-sm text-gray-600">
                         {lot.address.city}, {lot.address.state} {lot.address.zipCode}
                       </p>
-                      <p className="mt-1 text-sm font-semibold">
-                        ${lot.pricePerHour}/hour
-                      </p>
+                      <p className="mt-1 text-sm font-semibold">${lot.pricePerHour}/hour</p>
 
                       {lot.amenities.length > 0 && (
                         <div className="mt-4">
@@ -252,7 +166,7 @@ export default function OwnerDashboardPage() {
                         </div>
                       )}
 
-                      <div className="mt-6 flex items-center justify-between space-x-4">
+                      <div className="mt-6 flex justify-between items-center">
                         <Button 
                           variant="outline" 
                           size="sm"
@@ -260,14 +174,14 @@ export default function OwnerDashboardPage() {
                         >
                           View Details
                         </Button>
-                        <div className="flex space-x-4">
+                        <div className="flex space-x-2">
                           <Button
                             variant={lot.isAvailable ? 'danger' : 'primary'}
                             size="sm"
                             onClick={() => handleAvailabilityToggle(lot.id, lot.isAvailable)}
                             isLoading={loadingStates[lot.id]}
                           >
-                            {lot.isAvailable ? 'Mark as Occupied' : 'Mark as Available'}
+                            {lot.isAvailable ? 'Mark Occupied' : 'Mark Available'}
                           </Button>
                           <Button 
                             variant="secondary" 

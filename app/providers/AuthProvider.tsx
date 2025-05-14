@@ -61,7 +61,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       console.log('Initial session:', session);
       setUser(session?.user ?? null);
@@ -73,7 +72,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('Auth state changed:', _event, session);
       setUser(session?.user ?? null);
@@ -95,16 +93,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, name: string, userType: 'owner' | 'renter') => {
     try {
       console.log('Signing up user:', { email, name, userType });
-      // First, create the auth user
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             name,
-            user_type: userType
-          }
-        }
+            user_type: userType,
+          },
+        },
       });
 
       if (authError) {
@@ -113,23 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (authData.user) {
-        console.log('Auth user created:', authData.user);
-        // Insert the user details into the users table
-        const { error: profileError } = await supabase.from('users').insert({
-          id: authData.user.id,
-          email: authData.user.email!,
-          name,
-          user_type: userType,
-        }).select().single();
-
-        if (profileError) {
-          console.error("Error creating user profile:", profileError);
-          // If profile creation fails, we should clean up the auth user
-          await supabase.auth.admin.deleteUser(authData.user.id);
-          return { error: profileError };
-        }
-
-        console.log('User profile created successfully');
+        console.log('Auth user created (metadata will be used by DB trigger):', authData.user);
         return { error: null };
       }
 
@@ -178,4 +160,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-} 
+}

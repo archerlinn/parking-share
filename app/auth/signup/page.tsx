@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/providers/AuthProvider";
 
+
 export default function SignUpPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -21,17 +22,18 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      const { error } = await signUp(email, password, name, userType);
-      
-      if (error) {
-        setError(error.message);
+      const { error: signUpError } = await signUp(email, password, name, userType);
+
+      if (signUpError) {
+        console.error("Signup error:", signUpError.message);
+        setError(signUpError.message);
         return;
       }
 
-      // Redirect to login page after successful signup
       router.push("/auth/login?message=Please check your email to confirm your account");
-    } catch (err) {
-      setError("An unexpected error occurred");
+    } catch (err: any) {
+      console.error("Unexpected error:", err);
+      setError("An unexpected error occurred during signup.");
     } finally {
       setLoading(false);
     }
@@ -139,4 +141,4 @@ export default function SignUpPage() {
       </div>
     </div>
   );
-} 
+}

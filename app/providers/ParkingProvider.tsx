@@ -67,6 +67,7 @@ interface ParkingContextType {
   searchParkingLots: (location: string) => Promise<ParkingLot[]>;
   myBookings: Booking[];
   updateBookingStatus: (bookingId: string, status: Booking['status']) => Promise<void>;
+  uploadPhoto: (file: File) => Promise<string>;
 }
 
 const ParkingContext = createContext<ParkingContextType | null>(null);
@@ -152,6 +153,38 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
       console.error('Error fetching parking lots:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const uploadPhoto = async (file: File): Promise<string> => {
+    try {
+      console.log('Starting upload in ParkingProvider...');
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${fileName}`;
+      console.log('Generated file path:', filePath);
+
+      console.log('Attempting to upload to Supabase storage...');
+      const { data, error } = await supabase.storage
+        .from('parking-lots')
+        .upload(filePath, file);
+
+      if (error) {
+        console.error('Supabase storage upload error:', error);
+        throw error;
+      }
+
+      console.log('Upload successful, getting public URL...');
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('parking-lots')
+        .getPublicUrl(filePath);
+
+      console.log('Got public URL:', publicUrl);
+      return publicUrl;
+    } catch (error) {
+      console.error('Detailed error in uploadPhoto:', error);
+      throw error;
     }
   };
 
@@ -392,71 +425,68 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
   const requestBooking = async (
     parkingLotId: string,
     startTime: Date,
-    endTime: Date,
-    renterId: string
+    endTime: Date
   ): Promise<Booking | null> => {
+    if (!user) {
+      console.error("Must be logged in to book");
+      return null;
+    }
+    setLoading(true);
     try {
-      setLoading(true);
-      
+      // calculate duration & price
       const hours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
       const parkingLot = getParkingLotById(parkingLotId);
-      if (!parkingLot) return null;
-      
+      if (!parkingLot) throw new Error("Parking lot not found");
+  
       const totalPrice = parkingLot.pricePerHour * hours;
-
+  
+      // ** Minimal insert + simple select('*') **
       const { data, error } = await supabase
         .from('bookings')
-        .insert([{
+        .insert({
           parking_lot_id: parkingLotId,
-          renter_id:    renterId,
-          start_time:   startTime.toISOString(),
-          duration:     hours,
-          price:        totalPrice,
-          status:       'pending'
-        }])
-        .select(`
-          *,
-          parking_lots (
-            street,
-            city,
-            state,
-            owner_id,    
-            users (     
-              name
-            )
-          ),
-          renters:users!bookings_renter_id ( 
-            name
-          )
-        `)
+          renter_id:      user.id,
+          start_time:     startTime.toISOString(),
+          duration:       hours,
+          price:          totalPrice,
+          status:         'pending'
+        })
+        .select('*')
         .single();
-
-      if (error) throw error;
-
-      // now `data` is properly typed, and you can access:
+  
+      if (error) {
+        console.error("Supabase insert error:", error);
+        throw error;
+      }
+      if (!data) {
+        throw new Error("No booking returned");
+      }
+  
+      // Build your Booking object from what you know
       const newBooking: Booking = {
-        id:               data.id,
-        parkingLotId:     data.parking_lot_id,
-        parkingLotAddress: `${data.parking_lots.street}, ${data.parking_lots.city}, ${data.parking_lots.state}`,
-        renterId:         data.renter_id,
-        renterName:       data.renters.name,
-        ownerId:          data.parking_lots.owner_id,
-        ownerName:        data.parking_lots.users.name,
-        startTime:        data.start_time,
-        duration:         data.duration,
-        price:            data.price,
-        status:           data.status,
+        id:                data.id,
+        parkingLotId:      data.parking_lot_id,
+        parkingLotAddress: `${parkingLot.address.street}, ${parkingLot.address.city}, ${parkingLot.address.state}`,
+        renterId:          data.renter_id,
+        renterName:        profile?.name || '—',
+        ownerId:           parkingLot.ownerId,
+        ownerName:         parkingLot.ownerName,
+        startTime:         data.start_time,
+        duration:          data.duration,
+        price:             data.price,
+        status:            data.status as Booking['status'],
       };
-          
+  
       setBookings(prev => [...prev, newBooking]);
       return newBooking;
-    } catch (error) {
-      console.error("Request booking error:", error);
+    } catch (err: any) {
+      console.error("Request booking error:", err);
       return null;
     } finally {
       setLoading(false);
     }
   };
+  
 
   const confirmBooking = async (bookingId: string): Promise<void> => {
     try {
@@ -686,7 +716,8 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
         getBookingById,
         searchParkingLots,
         myBookings: bookings,
-        updateBookingStatus
+        updateBookingStatus,
+        uploadPhoto
       }}
     >
       {children}

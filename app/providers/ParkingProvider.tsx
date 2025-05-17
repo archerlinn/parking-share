@@ -45,6 +45,28 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'paid' | 'completed' | 'cancelled';
 }
 
+interface ParkingLotResponse {
+  id: string;
+  name: string;
+  street: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  total_spaces: number;
+  available_spaces: number;
+  price_per_hour: number;
+  photo_url: string | undefined;
+  is_available: boolean;
+  users: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
 interface ParkingContextType {
   parkingLots: ParkingLot[];
   myParkingLots: ParkingLot[];
@@ -196,14 +218,14 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
 
       // Combine all user IDs (friends and group members)
       const friendIds = [
-        ...(friendsData?.map(f => f.friend?.id) || []),
-        ...(receivedFriendsData?.map(f => f.friend?.id) || []),
-        ...(groupMembersData?.map(m => m.user_id) || []),
+        ...(friendsData?.map(f => f.friend?.[0]?.id).filter(Boolean) || []),
+        ...(receivedFriendsData?.map(f => f.friend?.[0]?.id).filter(Boolean) || []),
+        ...(groupMembersData?.map(m => m.user_id).filter(Boolean) || []),
         user.id // Include own lots
       ];
 
-      // Remove duplicates
-      const uniqueUserIds = [...new Set(friendIds)];
+      // Remove duplicates and undefined values
+      const uniqueUserIds = [...new Set(friendIds)].filter(Boolean);
       console.log('Unique user IDs to fetch parking lots for:', uniqueUserIds);
 
       // Fetch parking lots for all users
@@ -235,24 +257,27 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
       }
       console.log('Raw parking lots data:', lots);
 
-      const formattedLots: ParkingLot[] = lots.map(lot => ({
-        id: lot.id,
-        name: `${lot.street}, ${lot.city}`,
-        address: `${lot.street}, ${lot.city}, ${lot.state} ${lot.zip_code}, ${lot.country}`,
-        latitude: lot.latitude,
-        longitude: lot.longitude,
-        totalSpaces: 1, // Default to 1 space per lot
-        availableSpaces: lot.is_available ? 1 : 0,
-        pricePerHour: lot.price_per_hour,
-        photo_url: lot.photo_url,
-        is_available: lot.is_available,
-        owner: {
-          id: lot.owner.id,
-          name: lot.owner.name,
-          email: lot.owner.email
-        },
-        isFriendOrGroupMember: lot.owner.id !== user.id
-      }));
+      const formattedLots: ParkingLot[] = lots.map(lot => {
+        const owner = Array.isArray(lot.owner) ? lot.owner[0] : lot.owner;
+        return {
+          id: lot.id,
+          name: `${lot.street}, ${lot.city}`,
+          address: `${lot.street}, ${lot.city}, ${lot.state} ${lot.zip_code}, ${lot.country}`,
+          latitude: lot.latitude,
+          longitude: lot.longitude,
+          totalSpaces: 1, // Default to 1 space per lot
+          availableSpaces: lot.is_available ? 1 : 0,
+          pricePerHour: lot.price_per_hour,
+          photo_url: lot.photo_url,
+          is_available: lot.is_available,
+          owner: {
+            id: owner?.id ?? "",
+            name: owner?.name ?? "",
+            email: owner?.email ?? ""
+          },
+          isFriendOrGroupMember: owner?.id !== user.id
+        };
+      });
 
       console.log('Formatted parking lots:', formattedLots);
       setParkingLots(formattedLots);
@@ -307,28 +332,23 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
         .from('parking_lots')
         .insert({
           owner_id: user.id,
-          street: parkingLotData.street,
-          city: parkingLotData.city,
-          state: parkingLotData.state,
-          zip_code: parkingLotData.zip_code,
-          country: parkingLotData.country,
+          street: parkingLotData.address.split(',')[0].trim(),
+          city: parkingLotData.address.split(',')[1].trim(),
+          state: parkingLotData.address.split(',')[2].trim(),
+          zip_code: parkingLotData.address.split(',')[2].trim().split(' ')[1],
+          country: parkingLotData.address.split(',')[3].trim(),
           latitude: parkingLotData.latitude,
           longitude: parkingLotData.longitude,
           photo_url: parkingLotData.photo_url,
           is_available: parkingLotData.is_available,
-          price_per_hour: parkingLotData.price_per_hour,
-          amenities: parkingLotData.amenities,
-          notes: parkingLotData.notes,
-          floor: parkingLotData.floor,
-          number: parkingLotData.number,
-          restriction: parkingLotData.restriction,
+          price_per_hour: parkingLotData.pricePerHour,
         })
         .select(`
           *,
           users:owner_id (
+            id,
             name,
-            email,
-            phone
+            email
           )
         `)
         .single();
@@ -339,23 +359,29 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
         throw new Error("No data returned from insert");
       }
 
+      const responseData = data as ParkingLotResponse;
+      const owner = responseData.users;
+      if (!owner) {
+        throw new Error("No owner data found");
+      }
+
       const newParkingLot: ParkingLot = {
-        id: data.id,
-        name: data.name,
-        address: data.address,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        totalSpaces: data.total_spaces,
-        availableSpaces: data.available_spaces,
-        pricePerHour: data.price_per_hour,
-        photo_url: data.photo_url,
-        is_available: data.is_available,
+        id: responseData.id,
+        name: `${responseData.street}, ${responseData.city}`,
+        address: `${responseData.street}, ${responseData.city}, ${responseData.state} ${responseData.zip_code}, ${responseData.country}`,
+        latitude: responseData.latitude,
+        longitude: responseData.longitude,
+        totalSpaces: responseData.total_spaces || 1,
+        availableSpaces: responseData.available_spaces || 1,
+        pricePerHour: responseData.price_per_hour,
+        photo_url: responseData.photo_url || undefined,
+        is_available: responseData.is_available,
         owner: {
-          id: data.owner.id,
-          name: data.owner.name,
-          email: data.owner.email
+          id: owner.id,
+          name: owner.name,
+          email: owner.email
         },
-        isFriendOrGroupMember: data.owner.id !== user.id
+        isFriendOrGroupMember: owner.id !== user.id
       };
       
       setParkingLots(prev => [...prev, newParkingLot]);

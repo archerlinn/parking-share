@@ -44,7 +44,7 @@ export default function ParkingLotDetailPage() {
 
   const calculatePrice = (hoursToAdd: number) => {
     if (parkingLot) {
-      return parkingLot.price_per_hour * hoursToAdd;
+      return parkingLot.pricePerHour * hoursToAdd;
     }
     return 0;
   };
@@ -171,58 +171,29 @@ export default function ParkingLotDetailPage() {
               <Card className="overflow-hidden">
                 <Image
                   src={parkingLot.photo_url || '/placeholder-parking.jpg'}
-                  alt={`車位圖片：${parkingLot.street}`}
+                  alt={`車位圖片：${parkingLot.address}`}
                   width={800}
                   height={400}
                   className="w-full h-64 object-cover rounded-lg"
                 />
                 <div className="p-6">
                   <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold text-gray-900">{parkingLot.street}</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">{parkingLot.address}</h1>
                     <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                       {parkingLot.is_available ? '可供使用' : '使用中'}
                     </span>
                   </div>
-                  <p className="mt-2 text-gray-600">
-                    {`${parkingLot.city}, ${parkingLot.state} ${parkingLot.zip_code}`}
-                  </p>
                   <div className="mt-6">
                     <h2 className="text-lg font-semibold text-gray-900">車位詳情</h2>
                     <div className="mt-2 grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm font-medium text-gray-500">價格</p>
-                        <p className="text-lg font-semibold text-gray-900">{`$${parkingLot.price_per_hour}`}</p>
+                        <p className="text-lg font-semibold text-gray-900">{`$${parkingLot.pricePerHour}`}</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500">車主</p>
-                        <p className="text-lg text-gray-900">{parkingLot.ownerName}</p>
+                        <p className="text-lg text-gray-900">{parkingLot.owner.name}</p>
                       </div>
-                      {parkingLot.floor && (
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">樓層</p>
-                          <p className="text-lg text-gray-900">{parkingLot.floor}</p>
-                        </div>
-                      )}
-                      {parkingLot.number && (
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">車位號碼</p>
-                          <p className="text-lg text-gray-900">{parkingLot.number}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {parkingLot.restriction && (
-                    <div className="mt-6">
-                      <h2 className="text-lg font-semibold text-gray-900">使用限制</h2>
-                      <div className="mt-2 bg-gray-50 rounded-lg p-4">
-                        <p className="text-gray-600">{parkingLot.restriction}</p>
-                      </div>
-                    </div>
-                  )}
-                  <div className="mt-6">
-                    <h2 className="text-lg font-semibold text-gray-900">車主備註</h2>
-                    <div className="mt-2 bg-gray-50 rounded-lg p-4">
-                      <p className="text-gray-600">{parkingLot.notes || '車主未提供額外備註。'}</p>
                     </div>
                   </div>
                 </div>
@@ -287,7 +258,7 @@ export default function ParkingLotDetailPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-700">預估費用</p>
-                        <p className="mt-1 text-xl font-semibold text-gray-900">{`$${(parkingLot.price_per_hour * hours).toFixed(2)}`}</p>
+                        <p className="mt-1 text-xl font-semibold text-gray-900">{`$${(parkingLot.pricePerHour * hours).toFixed(2)}`}</p>
                       </div>
                       {error && <p className="text-sm text-red-600">{error}</p>}
                       <Button onClick={handleBookingRequest} isLoading={loading} fullWidth>
@@ -300,8 +271,8 @@ export default function ParkingLotDetailPage() {
               <Card className="p-6 mt-6">
                 <h2 className="text-lg font-semibold text-gray-900">聯絡資訊</h2>
                 <p className="mt-2 text-gray-600">
-                  <strong>姓名：</strong> {parkingLot.ownerName}<br/>
-                  <strong>Email：</strong> {parkingLot.ownerEmail}<br/>
+                  <strong>姓名：</strong> {parkingLot.owner.name}<br/>
+                  <strong>Email：</strong> {parkingLot.owner.email}<br/>
                 </p>
               </Card>
               <div className="mt-6 flex justify-end">

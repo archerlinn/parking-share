@@ -14,7 +14,7 @@ interface ModalProps {
 export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
   return (
     <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
+      <Dialog className="relative z-50" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -50,9 +50,9 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
                   </button>
                 </div>
                 <div>
-                  <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900 mb-4">
+                  <h3 className="text-lg font-semibold leading-6 text-gray-900 mb-4">
                     {title}
-                  </Dialog.Title>
+                  </h3>
                   <div className="mt-2">
                     {children}
                   </div>

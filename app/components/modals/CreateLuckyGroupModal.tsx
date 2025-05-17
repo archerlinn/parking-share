@@ -82,7 +82,7 @@ export default function CreateLuckyGroupModal({
           <Select
             multiple
             value={selectedFriends}
-            onChange={(value) => setSelectedFriends(value)}
+            onChange={(value) => setSelectedFriends(Array.isArray(value) ? value : [value])}
             options={friends.map(friend => ({
               value: friend.id,
               label: friend.name,

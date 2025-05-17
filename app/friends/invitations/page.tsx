@@ -1,47 +1,43 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Layout from '@/app/components/layout/Layout';
-import Button from '@/app/components/ui/Button';
-import Card from '@/app/components/ui/Card';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { supabase } from '@/lib/supabase';
+import Button from '@/app/components/ui/Button';
+import { useRouter } from 'next/navigation';
+import Layout from '@/app/components/layout/Layout';
+import Card from '@/app/components/ui/Card';
 
 interface FriendInvitation {
   id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
   sender: {
     id: string;
     name: string;
     email: string;
   };
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
-  created_at: string;
 }
 
 export default function InvitationsPage() {
+  const { user } = useAuth();
   const router = useRouter();
-  const { user, loading: isAuthLoading } = useAuth();
   const [invitations, setInvitations] = useState<FriendInvitation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAuthLoading) {
-      fetchInvitations();
+    if (!user) {
+      router.push('/login');
+      return;
     }
-  }, [isAuthLoading]);
+
+    fetchInvitations();
+  }, [user]);
 
   const fetchInvitations = async () => {
     try {
-      setIsLoading(true);
-      
-      if (!user?.id) {
-        throw new Error('User not logged in');
-      }
-
       const { data, error } = await supabase
-        .from('friendships')
+        .from('friend_invitations')
         .select(`
           id,
           status,
@@ -52,42 +48,44 @@ export default function InvitationsPage() {
             email
           )
         `)
-        .eq('receiver_id', user.id)
-        .eq('status', 'PENDING')
-        .order('created_at', { ascending: false });
+        .eq('receiver_id', user?.id)
+        .eq('status', 'pending');
 
       if (error) throw error;
 
-      setInvitations(data || []);
+      // Transform the data to match FriendInvitation type
+      const transformedData = (data || []).map(invitation => ({
+        id: invitation.id,
+        status: invitation.status,
+        created_at: invitation.created_at,
+        sender: invitation.sender[0] // Take the first sender since it's a one-to-one relationship
+      }));
+
+      setInvitations(transformedData);
     } catch (error: any) {
       console.error('Error fetching invitations:', error.message);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleInvitation = async (invitationId: string, action: 'ACCEPT' | 'REJECT') => {
-    if (!user) return;
-    
-    setProcessingId(invitationId);
+  const handleInvitation = async (invitationId: string, action: 'accept' | 'reject') => {
     try {
       const { error } = await supabase
-        .from('friendships')
-        .update({ status: action === 'ACCEPT' ? 'ACCEPTED' : 'REJECTED' })
+        .from('friend_invitations')
+        .update({ status: action === 'accept' ? 'accepted' : 'rejected' })
         .eq('id', invitationId);
 
       if (error) throw error;
 
-      // Remove the processed invitation from the list
-      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
-    } catch (error) {
-      console.error(`Failed to ${action.toLowerCase()} invitation:`, error);
-    } finally {
-      setProcessingId(null);
+      // Refresh the invitations list
+      fetchInvitations();
+    } catch (error: any) {
+      console.error(`Error ${action}ing invitation:`, error.message);
     }
   };
 
-  if (isAuthLoading) {
+  if (loading) {
     return (
       <Layout>
         <div className="min-h-screen bg-gray-50 py-12">
@@ -138,7 +136,7 @@ export default function InvitationsPage() {
           </div>
 
           <Card className="p-6">
-            {isLoading ? (
+            {loading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-600"></div>
               </div>
@@ -166,20 +164,15 @@ export default function InvitationsPage() {
                     </div>
                     <div className="flex space-x-2">
                       <Button
-                        onClick={() => handleInvitation(invitation.id, 'ACCEPT')}
-                        isLoading={processingId === invitation.id}
-                        disabled={processingId === invitation.id}
-                        variant="primary"
-                      >
-                        接受
-                      </Button>
-                      <Button
-                        onClick={() => handleInvitation(invitation.id, 'REJECT')}
-                        isLoading={processingId === invitation.id}
-                        disabled={processingId === invitation.id}
+                        onClick={() => handleInvitation(invitation.id, 'reject')}
                         variant="outline"
                       >
                         拒絕
+                      </Button>
+                      <Button
+                        onClick={() => handleInvitation(invitation.id, 'accept')}
+                      >
+                        接受
                       </Button>
                     </div>
                   </div>

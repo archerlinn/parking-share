@@ -90,8 +90,12 @@ export default function ParkingLotDetailsPage() {
               <div className="relative h-64 w-full">
                 <img
                   src={parkingLot.photo_url}
-                  alt={`Parking lot at ${parkingLot.street}`}
+                  alt={`Parking lot at ${parkingLot.address}`}
                   className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = '/placeholder-parking.jpg';
+                  }}
                 />
                 <div className="absolute top-4 right-4">
                   <span
@@ -115,7 +119,7 @@ export default function ParkingLotDetailsPage() {
                     <div>
                       <div className="text-sm font-medium text-gray-500">Address</div>
                       <div className="mt-1 text-base text-gray-900">
-                        {parkingLot.street}, {parkingLot.city}, {parkingLot.state} {parkingLot.zip_code}
+                        {parkingLot.address}
                       </div>
                     </div>
                     <div>
@@ -132,37 +136,8 @@ export default function ParkingLotDetailsPage() {
                   <div className="mt-4 space-y-3">
                     <div>
                       <div className="text-sm font-medium text-gray-500">Price per Hour</div>
-                      <div className="mt-1 text-2xl font-semibold text-gray-900">${parkingLot.price_per_hour.toFixed(2)}</div>
+                      <div className="mt-1 text-2xl font-semibold text-gray-900">${parkingLot.pricePerHour.toFixed(2)}</div>
                     </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Access Instructions</h2>
-                  <div className="mt-4">
-                    <div className="text-base text-gray-700 whitespace-pre-line">
-                      {parkingLot.notes || 'No access instructions provided.'}
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Amenities</h2>
-                  <div className="mt-4">
-                    {parkingLot.amenities.length > 0 ? (
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {parkingLot.amenities.map((amenity, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-800"
-                          >
-                            {amenity}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-base text-gray-500">No amenities listed</div>
-                    )}
                   </div>
                 </div>
               </div>

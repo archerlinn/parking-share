@@ -82,22 +82,21 @@ export default function RegisterParkingLotPage() {
     if (!user) return;
 
     const parkingLotData = {
-      owner_id: user.id,
-      street: formData.street,
-      city: formData.city,
-      state: formData.state,
-      zip_code: formData.zipCode,
-      country: formData.country,
+      name: `${formData.street}, ${formData.city}`,
+      address: `${formData.street}, ${formData.city}, ${formData.state} ${formData.zipCode}, ${formData.country}`,
       latitude: parseFloat(formData.latitude),
       longitude: parseFloat(formData.longitude),
-      floor: formData.floor || null,
-      number: formData.number || null,
-      restriction: formData.restriction || null,
-      notes: formData.notes || null,
-      photo_url: formData.photoUrl || null,
+      totalSpaces: 1,
+      availableSpaces: 1,
+      pricePerHour: 0,
+      photo_url: formData.photoUrl || undefined,
       is_available: true,
-      price_per_hour: 0, // Default price, can be updated later
-      amenities: [], // Default empty array, can be updated later
+      owner: {
+        id: user.id,
+        name: user.name || '',
+        email: user.email || ''
+      },
+      isFriendOrGroupMember: false
     };
 
     try {

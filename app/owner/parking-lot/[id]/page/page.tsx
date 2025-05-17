@@ -8,14 +8,40 @@ import Card from '../../../../components/ui/Card';
 import { useAuth } from '../../../../providers/AuthProvider';
 import { useParking } from '../../../../providers/ParkingProvider';
 
+interface ParkingLot {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  totalSpaces: number;
+  availableSpaces: number;
+  pricePerHour: number;
+  photo_url?: string;
+  is_available: boolean;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  isFriendOrGroupMember: boolean;
+}
+
 export default function ParkingLotDetailsPage() {
   const params = useParams();
   const parkingLotId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
   const router = useRouter();
   const { user } = useAuth();
   const { getParkingLotById, updateParkingLotAvailability, loading } = useParking();
+  const [isLoading, setIsLoading] = useState(true);
   
   const parkingLot = getParkingLotById(parkingLotId);
+  
+  useEffect(() => {
+    if (parkingLot || !parkingLotId) {
+      setIsLoading(false);
+    }
+  }, [parkingLot, parkingLotId]);
   
   if (!user) {
     return (
@@ -31,6 +57,20 @@ export default function ParkingLotDetailsPage() {
                 </Button>
               </div>
             </Card>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+  
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gray-50 py-12">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-600"></div>
+            </div>
           </div>
         </div>
       </Layout>
@@ -73,7 +113,7 @@ export default function ParkingLotDetailsPage() {
                   車位詳情
                 </h1>
                 <p className="mt-2 text-sm text-gray-600">
-                  {parkingLot.street}, {parkingLot.city}
+                  {parkingLot.address}
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
@@ -84,7 +124,7 @@ export default function ParkingLotDetailsPage() {
                 >
                   返回至我的車位
                 </Button>
-                {user.id === parkingLot.owner_id && (
+                {user.id === parkingLot.owner.id && (
                   <Button 
                     variant="primary" 
                     onClick={() => router.push(`/owner/parking-lot/${parkingLot.id}/edit`)}
@@ -106,7 +146,7 @@ export default function ParkingLotDetailsPage() {
                   <div className="relative aspect-video w-full bg-gray-100">
                     <img
                       src={parkingLot.photo_url}
-                      alt={`Parking lot at ${parkingLot.street}`}
+                      alt={`Parking lot at ${parkingLot.address}`}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.currentTarget.onerror = null;
@@ -151,7 +191,7 @@ export default function ParkingLotDetailsPage() {
                         <div>
                           <div className="text-sm font-medium text-gray-500">地址</div>
                           <div className="mt-1 text-base text-gray-900">
-                            {parkingLot.street}, {parkingLot.city}, {parkingLot.state} {parkingLot.zip_code}
+                            {parkingLot.address}
                           </div>
                         </div>
                       </div>
@@ -163,7 +203,7 @@ export default function ParkingLotDetailsPage() {
                         <div>
                           <div className="text-sm font-medium text-gray-500">每小時價格</div>
                           <div className="mt-1 text-2xl font-semibold text-gray-900">
-                            ${parkingLot.price_per_hour.toFixed(2)}
+                            ${(parkingLot.pricePerHour ?? 0).toFixed(2)}
                           </div>
                         </div>
                       </div>
@@ -179,43 +219,23 @@ export default function ParkingLotDetailsPage() {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">車位資訊</h2>
                 <div className="space-y-4">
-                  {parkingLot.floor && (
-                    <div>
-                      <div className="text-sm font-medium text-gray-500">樓層</div>
-                      <div className="mt-1 text-base text-gray-900">
-                        {parkingLot.floor}
-                      </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-500">總車位數</div>
+                    <div className="mt-1 text-base text-gray-900">
+                      {parkingLot.totalSpaces}
                     </div>
-                  )}
-                  {parkingLot.number && (
-                    <div>
-                      <div className="text-sm font-medium text-gray-500">車位號碼</div>
-                      <div className="mt-1 text-base text-gray-900">
-                        {parkingLot.number}
-                      </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-500">可用車位數</div>
+                    <div className="mt-1 text-base text-gray-900">
+                      {parkingLot.availableSpaces}
                     </div>
-                  )}
-                  {parkingLot.restriction && (
-                    <div>
-                      <div className="text-sm font-medium text-gray-500">使用限制</div>
-                      <div className="mt-1 text-base text-gray-900">
-                        {parkingLot.restriction}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Usage Instructions */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">使用說明</h2>
-                <div className="text-base text-gray-700 whitespace-pre-line">
-                  {parkingLot.notes || '無使用說明。'}
+                  </div>
                 </div>
               </div>
 
               {/* Availability Toggle - Only show for owner */}
-              {user.id === parkingLot.owner_id && (
+              {user.id === parkingLot.owner.id && (
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">使用狀態</h2>
                   <Button

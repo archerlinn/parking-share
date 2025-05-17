@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Layout from '../../../components/layout/Layout';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
-import TextArea from '../../../components/ui/TextArea';
 import Card from '../../../components/ui/Card';
 import LocationSearch from '../../../components/ui/LocationSearch';
 import { useAuth } from '../../../providers/AuthProvider';
@@ -17,472 +16,186 @@ export default function RegisterParkingLotPage() {
   const { user } = useAuth();
   const { addParkingLot, uploadPhoto, loading } = useParking();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [formData, setFormData] = useState({
     street: '',
     city: '',
     state: '',
     zipCode: '',
-    country: 'United States',
+    country: '台灣',
     latitude: '',
     longitude: '',
-    instructions: '',
-    pricePerHour: '',
-    amenities: '',
+    floor: '',
+    number: '',
+    restriction: '',
+    notes: '',
     photoUrl: '',
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>('');
-  
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) {
-      console.log('No file selected');
-      return;
-    }
-
-    console.log('Selected file:', file.name, 'Size:', file.size, 'Type:', file.type);
-
-    // Preview
+    if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreviewUrl(reader.result as string);
-      console.log('Preview URL set successfully');
-    };
+    reader.onloadend = () => setPreviewUrl(reader.result as string);
     reader.readAsDataURL(file);
-
-    // Upload
     try {
       setUploadingPhoto(true);
-      console.log('Starting photo upload...');
       const photoUrl = await uploadPhoto(file);
-      console.log('Photo uploaded successfully:', photoUrl);
       setFormData(prev => ({ ...prev, photoUrl }));
       setErrors(prev => ({ ...prev, photo: '' }));
     } catch (error) {
-      console.error('Detailed upload error:', error);
-      setErrors(prev => ({ ...prev, photo: `Failed to upload photo: ${error instanceof Error ? error.message : 'Unknown error'}` }));
+      setErrors(prev => ({ ...prev, photo: '照片上傳失敗' }));
     } finally {
       setUploadingPhoto(false);
     }
   };
-  
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
-    if (!formData.street.trim()) {
-      newErrors.street = 'Street address is required';
+    if (!formData.street.trim()) newErrors.street = '請選擇地址';
+    if (!formData.city.trim()) newErrors.city = '請選擇城市';
+    if (!formData.state.trim()) newErrors.state = '請選擇州/縣市';
+    if (!formData.zipCode.trim()) newErrors.zipCode = '請選擇郵遞區號';
+    if (!formData.latitude || !formData.longitude) {
+      newErrors.latitude = '請選擇位置';
+      newErrors.longitude = '請選擇位置';
     }
-    
-    if (!formData.city.trim()) {
-      newErrors.city = 'City is required';
-    }
-    
-    if (!formData.state.trim()) {
-      newErrors.state = 'State is required';
-    }
-    
-    if (!formData.zipCode.trim()) {
-      newErrors.zipCode = 'Zip code is required';
-    }
-    
-    if (!formData.latitude.trim() || !formData.longitude.trim()) {
-      newErrors.latitude = 'Coordinates are required';
-      newErrors.longitude = 'Coordinates are required';
-    } else {
-      const lat = parseFloat(formData.latitude);
-      const lng = parseFloat(formData.longitude);
-      
-      if (isNaN(lat) || lat < -90 || lat > 90) {
-        newErrors.latitude = 'Latitude must be between -90 and 90';
-      }
-      
-      if (isNaN(lng) || lng < -180 || lng > 180) {
-        newErrors.longitude = 'Longitude must be between -180 and 180';
-      }
-    }
-    
-    if (!formData.instructions.trim()) {
-      newErrors.instructions = 'Instructions are required';
-    }
-    
-    if (!formData.pricePerHour.trim()) {
-      newErrors.pricePerHour = 'Price per hour is required';
-    } else {
-      const price = parseFloat(formData.pricePerHour);
-      if (isNaN(price) || price <= 0) {
-        newErrors.pricePerHour = 'Price must be a positive number';
-      }
-    }
-    
+    if (!formData.floor.trim()) newErrors.floor = '請輸入樓層';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-    
-    if (!user) {
-      setErrors({
-        form: 'You must be logged in to register a parking lot',
-      });
-      return;
-    }
-    
-    const amenitiesArray = formData.amenities
-      .split(',')
-      .map(item => item.trim())
-      .filter(Boolean);
-    
+    if (!user) return;
+
     const parkingLotData = {
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-      ownerPhone: user.phone || '',
-      address: {
-        street: formData.street,
-        city: formData.city,
-        state: formData.state,
-        zipCode: formData.zipCode,
-        country: formData.country,
-        coordinates: {
-          latitude: parseFloat(formData.latitude),
-          longitude: parseFloat(formData.longitude),
-        },
-      },
-      instructions: formData.instructions,
-      photoUrl: formData.photoUrl || undefined,
-      isAvailable: true,
-      pricePerHour: parseFloat(formData.pricePerHour),
-      amenities: amenitiesArray,
+      owner_id: user.id,
+      street: formData.street,
+      city: formData.city,
+      state: formData.state,
+      zip_code: formData.zipCode,
+      country: formData.country,
+      latitude: parseFloat(formData.latitude),
+      longitude: parseFloat(formData.longitude),
+      floor: formData.floor || null,
+      number: formData.number || null,
+      restriction: formData.restriction || null,
+      notes: formData.notes || null,
+      photo_url: formData.photoUrl || null,
+      is_available: true,
+      price_per_hour: 0, // Default price, can be updated later
+      amenities: [], // Default empty array, can be updated later
     };
-    
+
     try {
-      const newParkingLot = await addParkingLot(parkingLotData);
-      
-      if (newParkingLot) {
-        setSuccessMessage('Parking lot registered successfully! Redirecting...');
-        setTimeout(() => {
-          router.push('/owner/dashboard');
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('Error registering parking lot:', error);
-      setErrors({
-        form: `Failed to register parking lot: ${error instanceof Error ? error.message : 'Please try again.'}`,
-      });
+      await addParkingLot(parkingLotData);
+      setSuccessMessage('車位註冊成功！即將跳轉...');
+      setTimeout(() => router.push('/owner/dashboard'), 2000);
+    } catch (err) {
+      setErrors({ form: '提交失敗，請稍後再試。' });
     }
   };
-  
-  const getLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setFormData(prev => ({
-            ...prev,
-            latitude: position.coords.latitude.toString(),
-            longitude: position.coords.longitude.toString(),
-          }));
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          setErrors(prev => ({
-            ...prev,
-            latitude: 'Could not get your current location',
-          }));
-        }
-      );
-    } else {
-      setErrors(prev => ({
-        ...prev,
-        latitude: 'Geolocation is not supported by your browser',
-      }));
-    }
-  };
-  
+
   if (!user) {
     return (
       <Layout>
         <div className="min-h-screen bg-gray-50 py-12">
           <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <Card className="p-6 text-center">
-              <h2 className="text-lg font-semibold text-gray-900">You need to be logged in to register a parking lot</h2>
-              <p className="mt-2 text-sm text-gray-600">Please sign in or create an account to continue.</p>
-              <div className="mt-6">
-                <Button onClick={() => router.push('/auth/login?next=/owner/parking-lot/register')}>
-                  Sign In
-                </Button>
-              </div>
+              <h2 className="text-lg font-semibold text-gray-900">請先登入以註冊車位</h2>
+              <Button onClick={() => router.push('/auth/login?next=/owner/parking-lot/register')}>登入</Button>
             </Card>
           </div>
         </div>
       </Layout>
     );
   }
-  
+
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 py-12">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Register Your Parking Lot
-            </h1>
-            <p className="mt-2 text-lg leading-8 text-gray-600">
-              Provide details about your parking space to start renting it.
-            </p>
-            
-            <div className="mt-10">
-              <Card className="p-6">
-                {successMessage ? (
-                  <div className="text-center text-green-600">
-                    <p>{successMessage}</p>
+        <div className="mx-auto max-w-2xl">
+          <h1 className="text-3xl font-bold mb-6">註冊您的停車位</h1>
+          {successMessage && <p className="text-green-600 mb-4">{successMessage}</p>}
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* 照片上傳 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">停車場照片</label>
+              <div className="mt-2 flex items-center gap-3">
+                {previewUrl ? (
+                  <div className="relative h-32 w-32">
+                    <Image src={previewUrl} alt="preview" fill className="rounded-lg object-cover" />
                   </div>
                 ) : (
-                  <form className="space-y-6" onSubmit={handleSubmit}>
-                    <div className="space-y-6">
-                      {/* Photo Upload Section */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Parking Lot Photo
-                        </label>
-                        <div className="mt-2 flex items-center gap-x-3">
-                          {previewUrl ? (
-                            <div className="relative h-32 w-32">
-                              <Image
-                                src={previewUrl}
-                                alt="Parking lot preview"
-                                fill
-                                className="rounded-lg object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <div className="h-32 w-32 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                              <span className="text-gray-500 text-sm text-center">
-                                No photo uploaded
-                              </span>
-                            </div>
-                          )}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={uploadingPhoto}
-                          >
-                            {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
-                          </Button>
-                          <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handlePhotoChange}
-                          />
-                        </div>
-                        {errors.photo && (
-                          <p className="mt-2 text-sm text-red-600">{errors.photo}</p>
-                        )}
-                      </div>
-
-                      {/* Location Section */}
-                      <div>
-                        <h3 className="text-lg font-medium leading-6 text-gray-900">Location Information</h3>
-                        <div className="mt-4 space-y-4">
-                          <LocationSearch
-                            defaultValue={formData.street}
-                            onLocationSelect={(location) => {
-                              setFormData(prev => ({
-                                ...prev,
-                                street: location.address,
-                                city: location.city,
-                                state: location.state,
-                                zipCode: location.zipCode,
-                                country: location.country,
-                                latitude: location.latitude.toString(),
-                                longitude: location.longitude.toString(),
-                              }));
-                            }}
-                            error={errors.street}
-                          />
-
-                          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                            <div className="sm:col-span-2">
-                              <Input
-                                id="city"
-                                name="city"
-                                type="text"
-                                label="City"
-                                value={formData.city}
-                                onChange={handleChange}
-                                error={errors.city}
-                                fullWidth
-                              />
-                            </div>
-
-                            <div className="sm:col-span-2">
-                              <Input
-                                id="state"
-                                name="state"
-                                type="text"
-                                label="State"
-                                value={formData.state}
-                                onChange={handleChange}
-                                error={errors.state}
-                                fullWidth
-                              />
-                            </div>
-
-                            <div className="sm:col-span-2">
-                              <Input
-                                id="zipCode"
-                                name="zipCode"
-                                type="text"
-                                label="ZIP Code"
-                                value={formData.zipCode}
-                                onChange={handleChange}
-                                error={errors.zipCode}
-                                fullWidth
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-6 pt-6">
-                        <h3 className="text-lg font-medium leading-6 text-gray-900">Coordinates</h3>
-                        
-                        <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
-                          <div className="sm:col-span-3">
-                            <Input
-                              id="latitude"
-                              name="latitude"
-                              type="text"
-                              label="Latitude"
-                              value={formData.latitude}
-                              onChange={handleChange}
-                              error={errors.latitude}
-                              fullWidth
-                              disabled
-                            />
-                          </div>
-                          
-                          <div className="sm:col-span-3">
-                            <Input
-                              id="longitude"
-                              name="longitude"
-                              type="text"
-                              label="Longitude"
-                              value={formData.longitude}
-                              onChange={handleChange}
-                              error={errors.longitude}
-                              fullWidth
-                              disabled
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="sm:col-span-6">
-                        <TextArea
-                          id="instructions"
-                          name="instructions"
-                          rows={4}
-                          label="Access Instructions"
-                          placeholder="Provide detailed instructions on how to access your parking lot..."
-                          value={formData.instructions}
-                          onChange={handleChange}
-                          error={errors.instructions}
-                          fullWidth
-                        />
-                      </div>
-                      
-                      <div className="sm:col-span-3">
-                        <Input
-                          id="pricePerHour"
-                          name="pricePerHour"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          label="Price per Hour ($)"
-                          value={formData.pricePerHour}
-                          onChange={handleChange}
-                          error={errors.pricePerHour}
-                          fullWidth
-                        />
-                      </div>
-                      
-                      <div className="sm:col-span-3">
-                        <Input
-                          id="amenities"
-                          name="amenities"
-                          type="text"
-                          label="Amenities"
-                          placeholder="Covered, EV Charging, 24/7 Access, etc."
-                          value={formData.amenities}
-                          onChange={handleChange}
-                          fullWidth
-                        />
-                        <p className="mt-1 text-sm text-gray-500">
-                          Comma-separated list of amenities
-                        </p>
-                      </div>
-                      
-                      <div className="sm:col-span-6">
-                        <Input
-                          id="photoUrl"
-                          name="photoUrl"
-                          type="url"
-                          label="Photo URL (optional)"
-                          placeholder="https://example.com/image.jpg"
-                          value={formData.photoUrl}
-                          onChange={handleChange}
-                          fullWidth
-                        />
-                      </div>
-                      
-                      {errors.form && (
-                        <div className="text-sm text-red-600">{errors.form}</div>
-                      )}
-                      
-                      <div className="flex justify-end gap-x-4">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => router.back()}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={loading || uploadingPhoto}
-                        >
-                          {loading ? 'Registering...' : 'Register Parking Lot'}
-                        </Button>
-                      </div>
-                    </div>
-                  </form>
+                  <div className="h-32 w-32 border rounded flex items-center justify-center text-gray-400">尚未上傳</div>
                 )}
-              </Card>
+                <Button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingPhoto}>
+                  {uploadingPhoto ? '上傳中...' : '上傳照片'}
+                </Button>
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoChange} />
+              </div>
+              {errors.photo && <p className="text-red-600 text-sm mt-1">{errors.photo}</p>}
             </div>
-          </div>
+
+            {/* 地址搜尋元件 */}
+            <LocationSearch
+              defaultValue={formData.street}
+              onLocationSelect={(location) => {
+                setFormData(prev => ({
+                  ...prev,
+                  street: location.address,
+                  city: location.city,
+                  state: location.state,
+                  zipCode: location.zipCode,
+                  country: location.country,
+                  latitude: location.latitude.toString(),
+                  longitude: location.longitude.toString(),
+                }));
+              }}
+              error={errors.street}
+            />
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Input id="city" name="city" label="城市" value={formData.city} onChange={handleChange} error={errors.city} fullWidth />
+              <Input id="state" name="state" label="縣市/州" value={formData.state} onChange={handleChange} error={errors.state} fullWidth disabled />
+              <Input id="zipCode" name="zipCode" label="郵遞區號" value={formData.zipCode} onChange={handleChange} error={errors.zipCode} fullWidth disabled />
+            </div>
+
+            {/* 經緯度 */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input id="latitude" name="latitude" label="緯度" value={formData.latitude} onChange={handleChange} error={errors.latitude} fullWidth disabled />
+              <Input id="longitude" name="longitude" label="經度" value={formData.longitude} onChange={handleChange} error={errors.longitude} fullWidth disabled />
+            </div>
+
+            {/* 細項填寫 */}
+            <Input id="floor" name="floor" label="樓層（必填）" value={formData.floor} onChange={handleChange} error={errors.floor} fullWidth />
+            <Input id="number" name="number" label="號碼（選填）" value={formData.number} onChange={handleChange} fullWidth />
+            <Input id="restriction" name="restriction" label="限制事項（選填）" value={formData.restriction} onChange={handleChange} fullWidth />
+            <Input id="notes" name="notes" label="其他事項（選填）" value={formData.notes} onChange={handleChange} fullWidth />
+
+            {/* 錯誤 */}
+            {errors.form && <p className="text-sm text-red-600">{errors.form}</p>}
+
+            <div className="flex justify-end gap-4">
+              <Button type="button" variant="outline" onClick={() => router.back()}>取消</Button>
+              <Button type="submit" disabled={loading || uploadingPhoto}>註冊車位</Button>
+            </div>
+          </form>
         </div>
       </div>
     </Layout>
   );
-} 
+}

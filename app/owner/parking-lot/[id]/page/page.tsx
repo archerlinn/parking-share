@@ -23,11 +23,11 @@ export default function ParkingLotDetailsPage() {
         <div className="min-h-screen bg-gray-50 py-12">
           <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <Card className="p-6 text-center">
-              <h2 className="text-lg font-semibold text-gray-900">You need to be logged in to view this parking lot</h2>
-              <p className="mt-2 text-sm text-gray-600">Please sign in or create an account to continue.</p>
+              <h2 className="text-lg font-semibold text-gray-900">您需要登入才能查看此車位</h2>
+              <p className="mt-2 text-sm text-gray-600">請登入或註冊帳號以繼續。</p>
               <div className="mt-6">
                 <Button onClick={() => router.push(`/auth/login?next=/owner/parking-lot/${parkingLotId}/page`)}>
-                  Sign In
+                  登入
                 </Button>
               </div>
             </Card>
@@ -43,11 +43,11 @@ export default function ParkingLotDetailsPage() {
         <div className="min-h-screen bg-gray-50 py-12">
           <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <Card className="p-6 text-center">
-              <h2 className="text-lg font-semibold text-gray-900">Parking lot not found</h2>
-              <p className="mt-2 text-sm text-gray-600">The parking lot you're looking for doesn't exist or has been removed.</p>
+              <h2 className="text-lg font-semibold text-gray-900">找不到車位</h2>
+              <p className="mt-2 text-sm text-gray-600">您查看的車位不存在或已被移除。</p>
               <div className="mt-6">
                 <Button onClick={() => router.push('/owner/dashboard')}>
-                  Return to Dashboard
+                  返回至我的車位
                 </Button>
               </div>
             </Card>
@@ -58,147 +58,176 @@ export default function ParkingLotDetailsPage() {
   }
   
   const toggleAvailability = async () => {
-    await updateParkingLotAvailability(parkingLot.id, !parkingLot.isAvailable);
+    await updateParkingLotAvailability(parkingLot.id, !parkingLot.is_available);
   };
   
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 py-12">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              Parking Lot Details
-            </h1>
-            <div className="flex space-x-3">
-              <Button 
-                variant="outline" 
-                onClick={() => router.push('/owner/dashboard')}
-              >
-                Back to Dashboard
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={() => router.push(`/owner/parking-lot/${parkingLot.id}/edit`)}
-              >
-                Edit Parking Lot
-              </Button>
-            </div>
-          </div>
-          
-          <div className="overflow-hidden rounded-lg bg-white shadow">
-            {parkingLot.photoUrl ? (
-              <div className="relative h-64 w-full bg-gray-100">
-                <img
-                  src={parkingLot.photoUrl}
-                  alt={`Parking lot at ${parkingLot.address.street}`}
-                  className="h-full w-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = '/placeholder-parking.jpg';
-                  }}
-                />
-                <div className="absolute top-4 right-4">
-                  <span
-                    className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
-                      parkingLot.isAvailable
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {parkingLot.isAvailable ? 'Available' : 'Occupied'}
-                  </span>
-                </div>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Header Section */}
+          <div className="mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                  車位詳情
+                </h1>
+                <p className="mt-2 text-sm text-gray-600">
+                  {parkingLot.street}, {parkingLot.city}
+                </p>
               </div>
-            ) : (
-              <div className="relative h-64 w-full bg-gray-100 flex items-center justify-center">
-                <span className="text-gray-400">No image available</span>
-                <div className="absolute top-4 right-4">
-                  <span
-                    className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
-                      parkingLot.isAvailable
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {parkingLot.isAvailable ? 'Available' : 'Occupied'}
-                  </span>
-                </div>
-              </div>
-            )}
-            
-            <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Location Information</h2>
-                  <div className="mt-4 space-y-3">
-                    <div>
-                      <div className="text-sm font-medium text-gray-500">Address</div>
-                      <div className="mt-1 text-base text-gray-900">
-                        {parkingLot.address.street}, {parkingLot.address.city}, {parkingLot.address.state} {parkingLot.address.zipCode}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-500">Coordinates</div>
-                      <div className="mt-1 text-base text-gray-900">
-                        {parkingLot.address.coordinates.latitude}, {parkingLot.address.coordinates.longitude}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Pricing</h2>
-                  <div className="mt-4 space-y-3">
-                    <div>
-                      <div className="text-sm font-medium text-gray-500">Price per Hour</div>
-                      <div className="mt-1 text-2xl font-semibold text-gray-900">${parkingLot.pricePerHour.toFixed(2)}</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Access Instructions</h2>
-                  <div className="mt-4">
-                    <div className="text-base text-gray-700 whitespace-pre-line">
-                      {parkingLot.instructions}
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Amenities</h2>
-                  <div className="mt-4">
-                    {parkingLot.amenities.length > 0 ? (
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {parkingLot.amenities.map((amenity, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-800"
-                          >
-                            {amenity}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-base text-gray-500">No amenities listed</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-8">
-                <h2 className="text-xl font-semibold text-gray-900">Availability</h2>
-                <div className="mt-4">
-                  <Button
-                    variant={parkingLot.isAvailable ? 'danger' : 'primary'}
-                    onClick={toggleAvailability}
-                    isLoading={loading}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push('/owner/dashboard')}
+                  className="w-full sm:w-auto"
+                >
+                  返回至我的車位
+                </Button>
+                {user.id === parkingLot.owner_id && (
+                  <Button 
+                    variant="primary" 
+                    onClick={() => router.push(`/owner/parking-lot/${parkingLot.id}/edit`)}
                     className="w-full sm:w-auto"
                   >
-                    {parkingLot.isAvailable ? 'Mark as Occupied' : 'Mark as Available'}
+                    編輯車位
                   </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Image and Status */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                {parkingLot.photo_url ? (
+                  <div className="relative aspect-video w-full bg-gray-100">
+                    <img
+                      src={parkingLot.photo_url}
+                      alt={`Parking lot at ${parkingLot.street}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = '/placeholder-parking.jpg';
+                      }}
+                    />
+                    <div className="absolute top-4 right-4">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
+                          parkingLot.is_available
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {parkingLot.is_available ? '可供使用' : '使用中'}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative aspect-video w-full bg-gray-100 flex items-center justify-center">
+                    <span className="text-gray-400">無圖片</span>
+                    <div className="absolute top-4 right-4">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
+                          parkingLot.is_available
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {parkingLot.is_available ? '可供使用' : '使用中'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Location and Price Info */}
+                <div className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <h2 className="text-lg font-semibold text-gray-900">位置資訊</h2>
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-sm font-medium text-gray-500">地址</div>
+                          <div className="mt-1 text-base text-gray-900">
+                            {parkingLot.street}, {parkingLot.city}, {parkingLot.state} {parkingLot.zip_code}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h2 className="text-lg font-semibold text-gray-900">價格</h2>
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-sm font-medium text-gray-500">每小時價格</div>
+                          <div className="mt-1 text-2xl font-semibold text-gray-900">
+                            ${parkingLot.price_per_hour.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+            </div>
+
+            {/* Right Column - Details and Actions */}
+            <div className="space-y-6">
+              {/* Parking Space Info */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">車位資訊</h2>
+                <div className="space-y-4">
+                  {parkingLot.floor && (
+                    <div>
+                      <div className="text-sm font-medium text-gray-500">樓層</div>
+                      <div className="mt-1 text-base text-gray-900">
+                        {parkingLot.floor}
+                      </div>
+                    </div>
+                  )}
+                  {parkingLot.number && (
+                    <div>
+                      <div className="text-sm font-medium text-gray-500">車位號碼</div>
+                      <div className="mt-1 text-base text-gray-900">
+                        {parkingLot.number}
+                      </div>
+                    </div>
+                  )}
+                  {parkingLot.restriction && (
+                    <div>
+                      <div className="text-sm font-medium text-gray-500">使用限制</div>
+                      <div className="mt-1 text-base text-gray-900">
+                        {parkingLot.restriction}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Usage Instructions */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">使用說明</h2>
+                <div className="text-base text-gray-700 whitespace-pre-line">
+                  {parkingLot.notes || '無使用說明。'}
+                </div>
+              </div>
+
+              {/* Availability Toggle - Only show for owner */}
+              {user.id === parkingLot.owner_id && (
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">使用狀態</h2>
+                  <Button
+                    variant={parkingLot.is_available ? 'danger' : 'primary'}
+                    onClick={toggleAvailability}
+                    isLoading={loading}
+                    className="w-full"
+                  >
+                    {parkingLot.is_available ? '標記為使用中' : '標記為可供使用'}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>

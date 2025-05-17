@@ -26,10 +26,12 @@ export default function EditParkingLotPage() {
     country: 'United States',
     latitude: '',
     longitude: '',
-    instructions: '',
-    pricePerHour: '',
-    amenities: '',
+    floor: '',
+    number: '',
+    restriction: '',
+    notes: '',
     photoUrl: '',
+    pricePerHour: '',
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -41,30 +43,26 @@ export default function EditParkingLotPage() {
     if (parkingLotId) {
       const parkingLot = getParkingLotById(parkingLotId);
       if (parkingLot) {
-        // Check if the user is the owner
-        if (user && parkingLot.ownerId !== user.id) {
-          setNotFoundError('You do not have permission to edit this parking lot.');
-          return;
-        }
-        
         setFormData({
-          street: parkingLot.address.street,
-          city: parkingLot.address.city,
-          state: parkingLot.address.state,
-          zipCode: parkingLot.address.zipCode,
-          country: parkingLot.address.country,
-          latitude: parkingLot.address.coordinates.latitude.toString(),
-          longitude: parkingLot.address.coordinates.longitude.toString(),
-          instructions: parkingLot.instructions,
-          pricePerHour: parkingLot.pricePerHour.toString(),
-          amenities: parkingLot.amenities.join(', '),
-          photoUrl: parkingLot.photoUrl || '',
+          street: parkingLot.street,
+          city: parkingLot.city,
+          state: parkingLot.state,
+          zipCode: parkingLot.zip_code,
+          country: parkingLot.country || 'United States',
+          latitude: parkingLot.latitude.toString(),
+          longitude: parkingLot.longitude.toString(),
+          floor: parkingLot.floor || '',
+          number: parkingLot.number || '',
+          restriction: parkingLot.restriction || '',
+          notes: parkingLot.notes || '',
+          photoUrl: parkingLot.photo_url || '',
+          pricePerHour: parkingLot.price_per_hour.toString(),
         });
       } else {
-        setNotFoundError('Parking lot not found.');
+        setNotFoundError('找不到車位。');
       }
     }
-  }, [parkingLotId, user, getParkingLotById]);
+  }, [parkingLotId, getParkingLotById]);
   
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -81,47 +79,47 @@ export default function EditParkingLotPage() {
     const newErrors: Record<string, string> = {};
     
     if (!formData.street.trim()) {
-      newErrors.street = 'Street address is required';
+      newErrors.street = '請輸入街道地址';
     }
     
     if (!formData.city.trim()) {
-      newErrors.city = 'City is required';
+      newErrors.city = '請輸入城市';
     }
     
     if (!formData.state.trim()) {
-      newErrors.state = 'State is required';
+      newErrors.state = '請輸入州/省';
     }
     
     if (!formData.zipCode.trim()) {
-      newErrors.zipCode = 'Zip code is required';
+      newErrors.zipCode = '請輸入郵遞區號';
     }
     
     if (!formData.latitude.trim() || !formData.longitude.trim()) {
-      newErrors.latitude = 'Coordinates are required';
-      newErrors.longitude = 'Coordinates are required';
+      newErrors.latitude = '請輸入座標';
+      newErrors.longitude = '請輸入座標';
     } else {
       const lat = parseFloat(formData.latitude);
       const lng = parseFloat(formData.longitude);
       
       if (isNaN(lat) || lat < -90 || lat > 90) {
-        newErrors.latitude = 'Latitude must be between -90 and 90';
+        newErrors.latitude = '緯度必須在 -90 到 90 之間';
       }
       
       if (isNaN(lng) || lng < -180 || lng > 180) {
-        newErrors.longitude = 'Longitude must be between -180 and 180';
+        newErrors.longitude = '經度必須在 -180 到 180 之間';
       }
     }
     
-    if (!formData.instructions.trim()) {
-      newErrors.instructions = 'Instructions are required';
+    if (!formData.notes.trim()) {
+      newErrors.notes = '請輸入使用說明';
     }
     
     if (!formData.pricePerHour.trim()) {
-      newErrors.pricePerHour = 'Price per hour is required';
+      newErrors.pricePerHour = '請輸入每小時價格';
     } else {
       const price = parseFloat(formData.pricePerHour);
-      if (isNaN(price) || price <= 0) {
-        newErrors.pricePerHour = 'Price must be a positive number';
+      if (isNaN(price) || price < 0) {
+        newErrors.pricePerHour = '價格不能為負數';
       }
     }
     
@@ -136,44 +134,37 @@ export default function EditParkingLotPage() {
     
     if (!user) {
       setErrors({
-        form: 'You must be logged in to update a parking lot',
+        form: '您必須登入才能更新車位資訊',
       });
       return;
     }
     
-    const amenitiesArray = formData.amenities
-      .split(',')
-      .map(item => item.trim())
-      .filter(Boolean);
-    
     const parkingLotData = {
-      address: {
-        street: formData.street,
-        city: formData.city,
-        state: formData.state,
-        zipCode: formData.zipCode,
-        country: formData.country,
-        coordinates: {
-          latitude: parseFloat(formData.latitude),
-          longitude: parseFloat(formData.longitude),
-        },
-      },
-      instructions: formData.instructions,
-      photoUrl: formData.photoUrl || undefined,
-      pricePerHour: parseFloat(formData.pricePerHour),
-      amenities: amenitiesArray,
+      street: formData.street,
+      city: formData.city,
+      state: formData.state,
+      zip_code: formData.zipCode,
+      country: formData.country,
+      latitude: parseFloat(formData.latitude),
+      longitude: parseFloat(formData.longitude),
+      floor: formData.floor || null,
+      number: formData.number || null,
+      restriction: formData.restriction || null,
+      notes: formData.notes || null,
+      photo_url: formData.photoUrl || null,
+      price_per_hour: parseFloat(formData.pricePerHour),
     };
     
     const updatedParkingLot = await updateParkingLot(parkingLotId, parkingLotData);
     
     if (updatedParkingLot) {
-      setSuccessMessage('Parking lot updated successfully! Redirecting...');
+      setSuccessMessage('車位更新成功！即將跳轉...');
       setTimeout(() => {
-        router.push('/owner/dashboard');
+        router.push(`/owner/parking-lot/${parkingLotId}/page`);
       }, 2000);
     } else {
       setErrors({
-        form: 'Failed to update parking lot. Please try again.',
+        form: '更新失敗，請稍後再試。',
       });
     }
   };
@@ -210,11 +201,11 @@ export default function EditParkingLotPage() {
         <div className="min-h-screen bg-gray-50 py-12">
           <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <Card className="p-6 text-center">
-              <h2 className="text-lg font-semibold text-gray-900">You need to be logged in to edit a parking lot</h2>
-              <p className="mt-2 text-sm text-gray-600">Please sign in or create an account to continue.</p>
+              <h2 className="text-lg font-semibold text-gray-900">您需要登入才能編輯車位</h2>
+              <p className="mt-2 text-sm text-gray-600">請登入或註冊帳號以繼續。</p>
               <div className="mt-6">
                 <Button onClick={() => router.push(`/auth/login?next=/owner/parking-lot/${parkingLotId}/edit`)}>
-                  Sign In
+                  登入
                 </Button>
               </div>
             </Card>
@@ -232,8 +223,8 @@ export default function EditParkingLotPage() {
             <Card className="p-6 text-center">
               <h2 className="text-lg font-semibold text-gray-900">{notFoundError}</h2>
               <div className="mt-6">
-                <Button onClick={() => router.push('/owner/dashboard')}>
-                  Return to Dashboard
+                <Button onClick={() => router.push(`/owner/parking-lot/${parkingLotId}/page`)}>
+                  返回至車位詳情
                 </Button>
               </div>
             </Card>
@@ -249,17 +240,17 @@ export default function EditParkingLotPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Edit Parking Lot
+              編輯車位
             </h1>
             <Button
               variant="outline"
-              onClick={() => router.push('/owner/dashboard')}
+              onClick={() => router.push(`/owner/parking-lot/${parkingLotId}/page`)}
             >
-              Back to Dashboard
+              返回至車位詳情
             </Button>
           </div>
           <p className="mt-2 text-lg leading-8 text-gray-600">
-            Update details about your parking space.
+            更新您的車位資訊。
           </p>
             
           <div className="mt-10">
@@ -279,7 +270,7 @@ export default function EditParkingLotPage() {
                   
                   <div className="space-y-8 divide-y divide-gray-200">
                     <div className="space-y-6 pt-4">
-                      <h3 className="text-lg font-medium leading-6 text-gray-900">Location Information</h3>
+                      <h3 className="text-lg font-medium leading-6 text-gray-900">位置資訊</h3>
                       
                       <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
                         <div className="sm:col-span-6 mb-4">
@@ -296,7 +287,6 @@ export default function EditParkingLotPage() {
                                 latitude: location.latitude.toString(),
                                 longitude: location.longitude.toString(),
                               }));
-                              // Clear any location-related errors
                               setErrors(prev => {
                                 const newErrors = {...prev};
                                 delete newErrors.street;
@@ -317,7 +307,7 @@ export default function EditParkingLotPage() {
                             id="street"
                             name="street"
                             type="text"
-                            label="Street address"
+                            label="街道地址"
                             value={formData.street}
                             onChange={handleChange}
                             error={errors.street}
@@ -331,7 +321,7 @@ export default function EditParkingLotPage() {
                             id="city"
                             name="city"
                             type="text"
-                            label="City"
+                            label="城市"
                             value={formData.city}
                             onChange={handleChange}
                             error={errors.city}
@@ -345,7 +335,7 @@ export default function EditParkingLotPage() {
                             id="state"
                             name="state"
                             type="text"
-                            label="State / Province"
+                            label="州/省"
                             value={formData.state}
                             onChange={handleChange}
                             error={errors.state}
@@ -359,7 +349,7 @@ export default function EditParkingLotPage() {
                             id="zipCode"
                             name="zipCode"
                             type="text"
-                            label="ZIP / Postal Code"
+                            label="郵遞區號"
                             value={formData.zipCode}
                             onChange={handleChange}
                             error={errors.zipCode}
@@ -373,9 +363,10 @@ export default function EditParkingLotPage() {
                             id="country"
                             name="country"
                             type="text"
-                            label="Country"
+                            label="國家"
                             value={formData.country}
                             onChange={handleChange}
+                            error={errors.country}
                             fullWidth
                             disabled
                           />
@@ -384,7 +375,7 @@ export default function EditParkingLotPage() {
                     </div>
                     
                     <div className="space-y-6 pt-6">
-                      <h3 className="text-lg font-medium leading-6 text-gray-900">Coordinates</h3>
+                      <h3 className="text-lg font-medium leading-6 text-gray-900">座標</h3>
                       
                       <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
                         <div className="sm:col-span-3">
@@ -392,11 +383,12 @@ export default function EditParkingLotPage() {
                             id="latitude"
                             name="latitude"
                             type="text"
-                            label="Latitude"
+                            label="緯度"
                             value={formData.latitude}
                             onChange={handleChange}
                             error={errors.latitude}
                             fullWidth
+                            disabled
                           />
                         </div>
                         
@@ -405,39 +397,63 @@ export default function EditParkingLotPage() {
                             id="longitude"
                             name="longitude"
                             type="text"
-                            label="Longitude"
+                            label="經度"
                             value={formData.longitude}
                             onChange={handleChange}
                             error={errors.longitude}
                             fullWidth
+                            disabled
                           />
-                        </div>
-                        
-                        <div className="sm:col-span-6">
-                          <div className="flex justify-end">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={getLocation}
-                            >
-                              Use Current Location
-                            </Button>
-                          </div>
                         </div>
                       </div>
                     </div>
                     
                     <div className="space-y-6 pt-6">
-                      <h3 className="text-lg font-medium leading-6 text-gray-900">Parking Details</h3>
+                      <h3 className="text-lg font-medium leading-6 text-gray-900">車位詳情</h3>
                       
                       <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
+                        <div className="sm:col-span-3">
+                          <Input
+                            id="floor"
+                            name="floor"
+                            type="text"
+                            label="樓層"
+                            value={formData.floor}
+                            onChange={handleChange}
+                            fullWidth
+                          />
+                        </div>
+
+                        <div className="sm:col-span-3">
+                          <Input
+                            id="number"
+                            name="number"
+                            type="text"
+                            label="車位號碼"
+                            value={formData.number}
+                            onChange={handleChange}
+                            fullWidth
+                          />
+                        </div>
+
+                        <div className="sm:col-span-6">
+                          <Input
+                            id="restriction"
+                            name="restriction"
+                            type="text"
+                            label="使用限制"
+                            value={formData.restriction}
+                            onChange={handleChange}
+                            fullWidth
+                          />
+                        </div>
+
                         <div className="sm:col-span-3">
                           <Input
                             id="pricePerHour"
                             name="pricePerHour"
                             type="text"
-                            label="Price per Hour ($)"
+                            label="每小時價格 ($)"
                             value={formData.pricePerHour}
                             onChange={handleChange}
                             error={errors.pricePerHour}
@@ -450,7 +466,7 @@ export default function EditParkingLotPage() {
                             id="photoUrl"
                             name="photoUrl"
                             type="text"
-                            label="Photo URL (optional)"
+                            label="照片網址 (選填)"
                             value={formData.photoUrl}
                             onChange={handleChange}
                             fullWidth
@@ -460,19 +476,19 @@ export default function EditParkingLotPage() {
                         {formData.photoUrl && (
                           <div className="sm:col-span-6 mt-2">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Photo Preview
+                              照片預覽
                             </label>
                             <div className="relative h-48 w-full bg-gray-100 rounded-md overflow-hidden">
                               <img
                                 src={formData.photoUrl}
-                                alt="Parking lot preview"
+                                alt="車位預覽"
                                 className="h-full w-full object-cover"
                                 onError={(e) => {
                                   e.currentTarget.onerror = null;
                                   e.currentTarget.style.display = 'none';
                                   setErrors(prev => ({
                                     ...prev,
-                                    photoUrl: 'Invalid image URL. Please provide a valid URL.'
+                                    photoUrl: '無效的圖片網址，請提供有效的網址。'
                                   }));
                                 }}
                                 onLoad={() => {
@@ -495,25 +511,13 @@ export default function EditParkingLotPage() {
                         )}
                         
                         <div className="sm:col-span-6">
-                          <Input
-                            id="amenities"
-                            name="amenities"
-                            type="text"
-                            label="Amenities (comma separated, e.g. Covered, EV Charging, Security)"
-                            value={formData.amenities}
-                            onChange={handleChange}
-                            fullWidth
-                          />
-                        </div>
-                        
-                        <div className="sm:col-span-6">
                           <TextArea
-                            id="instructions"
-                            name="instructions"
-                            label="Access Instructions"
-                            value={formData.instructions}
+                            id="notes"
+                            name="notes"
+                            label="使用說明"
+                            value={formData.notes}
                             onChange={handleChange}
-                            error={errors.instructions}
+                            error={errors.notes}
                             rows={4}
                             fullWidth
                           />
@@ -526,12 +530,12 @@ export default function EditParkingLotPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => router.push('/owner/dashboard')}
+                      onClick={() => router.push(`/owner/parking-lot/${parkingLotId}/page`)}
                     >
-                      Cancel
+                      取消
                     </Button>
                     <Button type="submit" isLoading={loading} className="min-w-[120px]">
-                      Update
+                      更新
                     </Button>
                   </div>
                 </form>

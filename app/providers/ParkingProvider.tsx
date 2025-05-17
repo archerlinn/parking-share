@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/lib/supabase";
 import { useAuth } from "./AuthProvider";
+import { ParkingProvider as ParkingProviderType } from "@/lib/types/parking";
 
 interface Coordinates {
   latitude: number;
@@ -13,25 +14,27 @@ interface Coordinates {
 
 export interface ParkingLot {
   id: string;
-  ownerId: string;
+  owner_id: string;
+  street: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  photo_url: string | null;
+  is_available: boolean;
+  price_per_hour: number;
+  amenities: string[];
+  notes: string | null;
+  created_at: string;
+  floor: string | null;
+  number: string | null;
+  restriction: string | null;
+  // Additional fields for UI
   ownerName: string;
   ownerEmail: string;
   ownerPhone: string;
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
-    coordinates: Coordinates;
-  };
-  instructions: string;
-  photoUrl?: string;
-  isAvailable: boolean;
-  pricePerHour: number;
-  amenities: string[];
-  accessInstructions?: string;
-  notes?: string;
 }
 
 export interface Booking {
@@ -54,8 +57,8 @@ interface ParkingContextType {
   bookings: Booking[];
   loading: boolean;
   userType: 'owner' | 'renter' | null;
-  addParkingLot: (parkingLotData: Omit<ParkingLot, "id">) => Promise<ParkingLot | null>;
-  updateParkingLot: (id: string, parkingLotData: Partial<ParkingLot>) => Promise<ParkingLot | null>;
+  addParkingLot: (parkingLotData: Omit<ParkingLot, "id" | "created_at" | "ownerName" | "ownerEmail" | "ownerPhone">) => Promise<ParkingLot | null>;
+  updateParkingLot: (id: string, parkingLotData: Partial<Omit<ParkingLot, "id" | "created_at" | "ownerName" | "ownerEmail" | "ownerPhone">>) => Promise<ParkingLot | null>;
   updateParkingLotAvailability: (id: string, isAvailable: boolean) => Promise<boolean>;
   getParkingLotById: (id: string) => ParkingLot | null;
   requestBooking: (parkingLotId: string, startTime: Date, endTime: Date, renterId: string) => Promise<Booking | null>;
@@ -124,28 +127,27 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
 
       const formattedParkingLots: ParkingLot[] = data.map(lot => ({
         id: lot.id,
-        ownerId: lot.owner_id,
+        owner_id: lot.owner_id,
+        street: lot.street,
+        city: lot.city,
+        state: lot.state,
+        zip_code: lot.zip_code,
+        country: lot.country,
+        latitude: lot.latitude,
+        longitude: lot.longitude,
+        photo_url: lot.photo_url,
+        is_available: lot.is_available,
+        price_per_hour: lot.price_per_hour,
+        amenities: lot.amenities,
+        notes: lot.notes,
+        created_at: lot.created_at,
+        floor: lot.floor,
+        number: lot.number,
+        restriction: lot.restriction,
+        // Additional UI fields
         ownerName: lot.users.name,
         ownerEmail: lot.users.email,
         ownerPhone: lot.users.phone || '',
-        address: {
-          street: lot.street,
-          city: lot.city,
-          state: lot.state,
-          zipCode: lot.zip_code,
-          country: lot.country,
-          coordinates: {
-            latitude: lot.latitude,
-            longitude: lot.longitude,
-          },
-        },
-        instructions: lot.instructions,
-        photoUrl: lot.photo_url || undefined,
-        isAvailable: lot.is_available,
-        pricePerHour: lot.price_per_hour,
-        amenities: lot.amenities,
-        accessInstructions: lot.access_instructions || undefined,
-        notes: lot.notes || undefined,
       }));
 
       setParkingLots(formattedParkingLots);
@@ -189,39 +191,34 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
   };
 
   const addParkingLot = async (
-    parkingLotData: Omit<ParkingLot, "id">
+    parkingLotData: Omit<ParkingLot, "id" | "created_at" | "ownerName" | "ownerEmail" | "ownerPhone">
   ): Promise<ParkingLot | null> => {
     try {
       setLoading(true);
       
-      // Check if user is authenticated
       if (!user) {
         throw new Error("User must be authenticated to add a parking lot");
-      }
-
-      // Validate required fields
-      if (!parkingLotData.address) {
-        throw new Error("Missing required fields");
       }
 
       const { data, error } = await supabase
         .from('parking_lots')
         .insert({
-          owner_id: user.id, // Use the authenticated user's ID
-          street: parkingLotData.address.street,
-          city: parkingLotData.address.city,
-          state: parkingLotData.address.state,
-          zip_code: parkingLotData.address.zipCode,
-          country: parkingLotData.address.country,
-          latitude: parkingLotData.address.coordinates.latitude,
-          longitude: parkingLotData.address.coordinates.longitude,
-          instructions: parkingLotData.instructions,
-          photo_url: parkingLotData.photoUrl || null,
-          is_available: parkingLotData.isAvailable,
-          price_per_hour: parkingLotData.pricePerHour,
-          amenities: parkingLotData.amenities || [],
-          access_instructions: parkingLotData.accessInstructions || null,
-          notes: parkingLotData.notes || null,
+          owner_id: user.id,
+          street: parkingLotData.street,
+          city: parkingLotData.city,
+          state: parkingLotData.state,
+          zip_code: parkingLotData.zip_code,
+          country: parkingLotData.country,
+          latitude: parkingLotData.latitude,
+          longitude: parkingLotData.longitude,
+          photo_url: parkingLotData.photo_url,
+          is_available: parkingLotData.is_available,
+          price_per_hour: parkingLotData.price_per_hour,
+          amenities: parkingLotData.amenities,
+          notes: parkingLotData.notes,
+          floor: parkingLotData.floor,
+          number: parkingLotData.number,
+          restriction: parkingLotData.restriction,
         })
         .select(`
           *,
@@ -233,10 +230,7 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
         `)
         .single();
 
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
       if (!data) {
         throw new Error("No data returned from insert");
@@ -244,34 +238,33 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
 
       const newParkingLot: ParkingLot = {
         id: data.id,
-        ownerId: data.owner_id,
+        owner_id: data.owner_id,
+        street: data.street,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zip_code,
+        country: data.country,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        photo_url: data.photo_url,
+        is_available: data.is_available,
+        price_per_hour: data.price_per_hour,
+        amenities: data.amenities,
+        notes: data.notes,
+        created_at: data.created_at,
+        floor: data.floor,
+        number: data.number,
+        restriction: data.restriction,
+        // Additional UI fields
         ownerName: data.users.name,
         ownerEmail: data.users.email,
         ownerPhone: data.users.phone || '',
-        address: {
-          street: data.street,
-          city: data.city,
-          state: data.state,
-          zipCode: data.zip_code,
-          country: data.country,
-          coordinates: {
-            latitude: data.latitude,
-            longitude: data.longitude,
-          },
-        },
-        instructions: data.instructions,
-        photoUrl: data.photo_url || undefined,
-        isAvailable: data.is_available,
-        pricePerHour: data.price_per_hour,
-        amenities: data.amenities,
-        accessInstructions: data.access_instructions || undefined,
-        notes: data.notes || undefined,
       };
       
       setParkingLots(prev => [...prev, newParkingLot]);
       return newParkingLot;
-    } catch (error) {
-      console.error("Add parking lot error:", error);
+    } catch (error: any) {
+      console.error("Add parking lot error:", error?.message || error || "Unknown error");
       return null;
     } finally {
       setLoading(false);
@@ -280,55 +273,27 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
 
   const updateParkingLot = async (
     id: string,
-    parkingLotData: Partial<ParkingLot>
+    parkingLotData: Partial<Omit<ParkingLot, "id" | "created_at" | "ownerName" | "ownerEmail" | "ownerPhone">>
   ): Promise<ParkingLot | null> => {
     try {
       setLoading(true);
       
-      // Check if user is authenticated
       if (!user) {
         throw new Error("User must be authenticated to update a parking lot");
       }
 
-      // Get the existing parking lot
       const existingLot = getParkingLotById(id);
       if (!existingLot) {
         throw new Error("Parking lot not found");
       }
 
-      // Ensure user owns the parking lot
-      if (existingLot.ownerId !== user.id) {
+      if (existingLot.owner_id !== user.id) {
         throw new Error("You can only update your own parking lots");
       }
 
-      // Prepare update data
-      const updateData: any = {};
-      
-      // Only include fields that are provided in the parkingLotData
-      if (parkingLotData.address) {
-        if (parkingLotData.address.street) updateData.street = parkingLotData.address.street;
-        if (parkingLotData.address.city) updateData.city = parkingLotData.address.city;
-        if (parkingLotData.address.state) updateData.state = parkingLotData.address.state;
-        if (parkingLotData.address.zipCode) updateData.zip_code = parkingLotData.address.zipCode;
-        if (parkingLotData.address.country) updateData.country = parkingLotData.address.country;
-        if (parkingLotData.address.coordinates) {
-          updateData.latitude = parkingLotData.address.coordinates.latitude;
-          updateData.longitude = parkingLotData.address.coordinates.longitude;
-        }
-      }
-      
-      if (parkingLotData.instructions !== undefined) updateData.instructions = parkingLotData.instructions;
-      if (parkingLotData.photoUrl !== undefined) updateData.photo_url = parkingLotData.photoUrl;
-      if (parkingLotData.isAvailable !== undefined) updateData.is_available = parkingLotData.isAvailable;
-      if (parkingLotData.pricePerHour !== undefined) updateData.price_per_hour = parkingLotData.pricePerHour;
-      if (parkingLotData.amenities !== undefined) updateData.amenities = parkingLotData.amenities;
-      if (parkingLotData.accessInstructions !== undefined) updateData.access_instructions = parkingLotData.accessInstructions;
-      if (parkingLotData.notes !== undefined) updateData.notes = parkingLotData.notes;
-
-      // Update the parking lot in the database
       const { data, error } = await supabase
         .from('parking_lots')
-        .update(updateData)
+        .update(parkingLotData)
         .eq('id', id)
         .select(`
           *,
@@ -340,47 +305,41 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
         `)
         .single();
 
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
       if (!data) {
         throw new Error("No data returned from update");
       }
 
-      // Format the updated parking lot
       const updatedParkingLot: ParkingLot = {
         id: data.id,
-        ownerId: data.owner_id,
+        owner_id: data.owner_id,
+        street: data.street,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zip_code,
+        country: data.country,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        photo_url: data.photo_url,
+        is_available: data.is_available,
+        price_per_hour: data.price_per_hour,
+        amenities: data.amenities,
+        notes: data.notes,
+        created_at: data.created_at,
+        floor: data.floor,
+        number: data.number,
+        restriction: data.restriction,
+        // Additional UI fields
         ownerName: data.users.name,
         ownerEmail: data.users.email,
         ownerPhone: data.users.phone || '',
-        address: {
-          street: data.street,
-          city: data.city,
-          state: data.state,
-          zipCode: data.zip_code,
-          country: data.country,
-          coordinates: {
-            latitude: data.latitude,
-            longitude: data.longitude,
-          },
-        },
-        instructions: data.instructions,
-        photoUrl: data.photo_url || undefined,
-        isAvailable: data.is_available,
-        pricePerHour: data.price_per_hour,
-        amenities: data.amenities,
-        accessInstructions: data.access_instructions || undefined,
-        notes: data.notes || undefined,
       };
-      
-      // Update the parking lot in the state
-      setParkingLots(prev => 
-        prev.map(lot => lot.id === id ? updatedParkingLot : lot)
+
+      setParkingLots(prev =>
+        prev.map(lot => (lot.id === id ? updatedParkingLot : lot))
       );
-      
+
       return updatedParkingLot;
     } catch (error) {
       console.error("Update parking lot error:", error);
@@ -406,7 +365,7 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
       
       setParkingLots(prev =>
         prev.map(lot =>
-          lot.id === id ? { ...lot, isAvailable } : lot
+          lot.id === id ? { ...lot, is_available: isAvailable } : lot
         )
       );
       return true;
@@ -438,7 +397,7 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
       const parkingLot = getParkingLotById(parkingLotId);
       if (!parkingLot) throw new Error("Parking lot not found");
   
-      const totalPrice = parkingLot.pricePerHour * hours;
+      const totalPrice = parkingLot.price_per_hour * hours;
   
       // ** Minimal insert + simple select('*') **
       const { data, error } = await supabase
@@ -455,7 +414,7 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
         .single();
   
       if (error) {
-        console.error("Supabase insert error:", error);
+        console.error("Supabase insert error:", error.message);
         throw error;
       }
       if (!data) {
@@ -466,10 +425,10 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
       const newBooking: Booking = {
         id:                data.id,
         parkingLotId:      data.parking_lot_id,
-        parkingLotAddress: `${parkingLot.address.street}, ${parkingLot.address.city}, ${parkingLot.address.state}`,
+        parkingLotAddress: `${parkingLot.street}, ${parkingLot.city}, ${parkingLot.state}`,
         renterId:          data.renter_id,
         renterName:        profile?.name || '—',
-        ownerId:           parkingLot.ownerId,
+        ownerId:           parkingLot.owner_id,
         ownerName:         parkingLot.ownerName,
         startTime:         data.start_time,
         duration:          data.duration,
@@ -633,28 +592,27 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
 
       const formattedParkingLots: ParkingLot[] = data.map(lot => ({
         id: lot.id,
-        ownerId: lot.owner_id,
+        owner_id: lot.owner_id,
+        street: lot.street,
+        city: lot.city,
+        state: lot.state,
+        zip_code: lot.zip_code,
+        country: lot.country,
+        latitude: lot.latitude,
+        longitude: lot.longitude,
+        photo_url: lot.photo_url,
+        is_available: lot.is_available,
+        price_per_hour: lot.price_per_hour,
+        amenities: lot.amenities,
+        notes: lot.notes,
+        created_at: lot.created_at,
+        floor: lot.floor,
+        number: lot.number,
+        restriction: lot.restriction,
+        // Additional UI fields
         ownerName: lot.users.name,
         ownerEmail: lot.users.email,
-        ownerPhone: lot.users.phone,
-        address: {
-          street: lot.street,
-          city: lot.city,
-          state: lot.state,
-          zipCode: lot.zip_code,
-          country: lot.country,
-          coordinates: {
-            latitude: lot.latitude,
-            longitude: lot.longitude,
-          },
-        },
-        instructions: lot.instructions,
-        photoUrl: lot.photo_url,
-        isAvailable: lot.is_available,
-        pricePerHour: lot.price_per_hour,
-        amenities: lot.amenities,
-        accessInstructions: lot.access_instructions,
-        notes: lot.notes,
+        ownerPhone: lot.users.phone || '',
       }));
 
       return formattedParkingLots;
@@ -668,7 +626,7 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
   
   // Filter parking lots owned by a specific user
   const myParkingLots = (userId: string) => {
-    return parkingLots.filter((lot) => lot.ownerId === userId);
+    return parkingLots.filter((lot) => lot.owner_id === userId);
   };
 
   const updateBookingStatus = async (bookingId: string, status: Booking['status']) => {
@@ -700,7 +658,7 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
     <ParkingContext.Provider
       value={{
         parkingLots,
-        myParkingLots: parkingLots.filter(lot => lot.ownerId === user?.id),
+        myParkingLots: parkingLots.filter(lot => lot.owner_id === user?.id),
         bookings,
         loading,
         userType,

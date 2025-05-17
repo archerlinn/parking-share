@@ -58,7 +58,7 @@ export default function ParkingLotDetailsPage() {
   }
   
   const toggleAvailability = async () => {
-    await updateParkingLotAvailability(parkingLot.id, !parkingLot.isAvailable);
+    await updateParkingLotAvailability(parkingLot.id, !parkingLot.is_available);
   };
   
   return (
@@ -86,22 +86,22 @@ export default function ParkingLotDetailsPage() {
           </div>
           
           <div className="overflow-hidden rounded-lg bg-white shadow">
-            {parkingLot.photoUrl && (
+            {parkingLot.photo_url && (
               <div className="relative h-64 w-full">
                 <img
-                  src={parkingLot.photoUrl}
-                  alt={`Parking lot at ${parkingLot.address.street}`}
+                  src={parkingLot.photo_url}
+                  alt={`Parking lot at ${parkingLot.street}`}
                   className="h-full w-full object-cover"
                 />
                 <div className="absolute top-4 right-4">
                   <span
                     className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
-                      parkingLot.isAvailable
+                      parkingLot.is_available
                         ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
                     }`}
                   >
-                    {parkingLot.isAvailable ? 'Available' : 'Occupied'}
+                    {parkingLot.is_available ? 'Available' : 'Occupied'}
                   </span>
                 </div>
               </div>
@@ -115,13 +115,13 @@ export default function ParkingLotDetailsPage() {
                     <div>
                       <div className="text-sm font-medium text-gray-500">Address</div>
                       <div className="mt-1 text-base text-gray-900">
-                        {parkingLot.address.street}, {parkingLot.address.city}, {parkingLot.address.state} {parkingLot.address.zipCode}
+                        {parkingLot.street}, {parkingLot.city}, {parkingLot.state} {parkingLot.zip_code}
                       </div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-500">Coordinates</div>
                       <div className="mt-1 text-base text-gray-900">
-                        {parkingLot.address.coordinates.latitude}, {parkingLot.address.coordinates.longitude}
+                        {parkingLot.latitude}, {parkingLot.longitude}
                       </div>
                     </div>
                   </div>
@@ -132,7 +132,7 @@ export default function ParkingLotDetailsPage() {
                   <div className="mt-4 space-y-3">
                     <div>
                       <div className="text-sm font-medium text-gray-500">Price per Hour</div>
-                      <div className="mt-1 text-2xl font-semibold text-gray-900">${parkingLot.pricePerHour.toFixed(2)}</div>
+                      <div className="mt-1 text-2xl font-semibold text-gray-900">${parkingLot.price_per_hour.toFixed(2)}</div>
                     </div>
                   </div>
                 </div>
@@ -141,7 +141,7 @@ export default function ParkingLotDetailsPage() {
                   <h2 className="text-xl font-semibold text-gray-900">Access Instructions</h2>
                   <div className="mt-4">
                     <div className="text-base text-gray-700 whitespace-pre-line">
-                      {parkingLot.instructions}
+                      {parkingLot.notes || 'No access instructions provided.'}
                     </div>
                   </div>
                 </div>
@@ -171,12 +171,12 @@ export default function ParkingLotDetailsPage() {
                 <h2 className="text-xl font-semibold text-gray-900">Availability</h2>
                 <div className="mt-4">
                   <Button
-                    variant={parkingLot.isAvailable ? 'danger' : 'primary'}
+                    variant={parkingLot.is_available ? 'danger' : 'primary'}
                     onClick={toggleAvailability}
                     isLoading={loading}
                     className="w-full sm:w-auto"
                   >
-                    {parkingLot.isAvailable ? 'Mark as Occupied' : 'Mark as Available'}
+                    {parkingLot.is_available ? 'Mark as Occupied' : 'Mark as Available'}
                   </Button>
                 </div>
               </div>

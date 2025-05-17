@@ -3,6 +3,9 @@ const nextConfig = {
   transpilePackages: ['leaflet'],
   eslint: {
     ignoreDuringBuilds: true
+  },
+  images: {
+    domains: ['qfemnpzvhniyzcojbhox.supabase.co']
   }
 }
 

@@ -128,8 +128,8 @@ export default function LocationSearch({ onLocationSelect, defaultValue = '', er
       <Input
         ref={inputRef}
         type="text"
-        label="Search Location"
-        placeholder="Enter your parking lot address (any country)"
+        label="搜尋地址"
+        placeholder="輸入您要找的地址"
         value={searchValue}
         onChange={(e) => setSearchValue(e.target.value)}
         error={error}

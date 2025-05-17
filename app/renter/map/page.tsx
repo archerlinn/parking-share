@@ -40,11 +40,6 @@ export default function RenterMapPage() {
       <Layout>{/* …sign-in prompt… */}</Layout>
     );
   }
-  if (profile?.user_type !== 'renter') {
-    return (
-      <Layout>{/* …owner-block prompt… */}</Layout>
-    );
-  }
   if (loading) {
     return (
       <Layout>{/* …spinner… */}</Layout>

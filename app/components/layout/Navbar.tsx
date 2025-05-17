@@ -24,11 +24,14 @@ const Navbar: React.FC = () => {
           <div className="hidden sm:flex items-center space-x-4">
             {user ? (
               <>
+                <Link href="/renter/map" className="text-gray-700 hover:text-rose-600 text-sm font-medium px-3 py-2">
+                  尋找車位
+                </Link>
                 <Link href="/owner/dashboard" className="text-gray-700 hover:text-rose-600 text-sm font-medium px-3 py-2">
                   我的車位
                 </Link>
-                <Link href="/renter/map" className="text-gray-700 hover:text-rose-600 text-sm font-medium px-3 py-2">
-                  尋找車位
+                <Link href="/lucky-friends" className="text-gray-700 hover:text-rose-600 text-sm font-medium px-3 py-2">
+                  幸運好友
                 </Link>
                 <Link href="/bookings" className="text-gray-700 hover:text-rose-600 text-sm font-medium px-3 py-2">
                   我的預訂
@@ -87,6 +90,9 @@ const Navbar: React.FC = () => {
               </Link>
               <Link href="/renter/map" className="block text-gray-700 hover:text-rose-600 text-base py-2">
                 尋找車位
+              </Link>
+              <Link href="/lucky-friends" className="block text-gray-700 hover:text-rose-600 text-base py-2">
+                幸運好友
               </Link>
               <Link href="/bookings" className="block text-gray-700 hover:text-rose-600 text-base py-2">
                 我的預訂

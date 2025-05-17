@@ -14,27 +14,21 @@ interface Coordinates {
 
 export interface ParkingLot {
   id: string;
-  owner_id: string;
-  street: string;
-  city: string;
-  state: string;
-  zip_code: string;
-  country: string;
+  name: string;
+  address: string;
   latitude: number;
   longitude: number;
-  photo_url: string | null;
+  totalSpaces: number;
+  availableSpaces: number;
+  pricePerHour: number;
+  photo_url?: string;
   is_available: boolean;
-  price_per_hour: number;
-  amenities: string[];
-  notes: string | null;
-  created_at: string;
-  floor: string | null;
-  number: string | null;
-  restriction: string | null;
-  // Additional fields for UI
-  ownerName: string;
-  ownerEmail: string;
-  ownerPhone: string;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  isFriendOrGroupMember: boolean;
 }
 
 export interface Booking {
@@ -106,55 +100,164 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
 
   // Fetch parking lots on mount
   useEffect(() => {
-    fetchParkingLots();
-  }, []);
+    if (user) {
+      console.log('User is available, fetching parking lots...');
+      fetchParkingLots();
+    } else {
+      console.log('No user available yet, waiting...');
+    }
+  }, [user]);
 
   const fetchParkingLots = async () => {
+    if (!user) {
+      console.log('No user found, skipping parking lot fetch');
+      return;
+    }
+
     try {
-      setLoading(true);
-      const { data, error } = await supabase
+      console.log('Starting to fetch parking lots for user:', user.id);
+      
+      // First get all friends and group members
+      const { data: friendsData, error: friendsError } = await supabase
+        .from('friendships')
+        .select(`
+          friend:users!friendships_receiver_id_fkey (
+            id
+          )
+        `)
+        .eq('sender_id', user.id)
+        .eq('status', 'ACCEPTED');
+
+      if (friendsError) {
+        console.error('Error fetching friends:', friendsError);
+        throw friendsError;
+      }
+      console.log('Friends data:', friendsData);
+
+      const { data: receivedFriendsData, error: receivedFriendsError } = await supabase
+        .from('friendships')
+        .select(`
+          friend:users!friendships_sender_id_fkey (
+            id
+          )
+        `)
+        .eq('receiver_id', user.id)
+        .eq('status', 'ACCEPTED');
+
+      if (receivedFriendsError) {
+        console.error('Error fetching received friends:', receivedFriendsError);
+        throw receivedFriendsError;
+      }
+      console.log('Received friends data:', receivedFriendsData);
+
+      // Get groups where user is a member or creator
+      const { data: userGroups, error: groupsError } = await supabase
+        .from('lucky_groups')
+        .select('id')
+        .eq('created_by', user.id);
+
+      if (groupsError) {
+        console.error('Error fetching groups:', groupsError);
+        throw groupsError;
+      }
+      console.log('User groups:', userGroups);
+
+      // Get groups where user is a member
+      const { data: memberGroups, error: memberGroupsError } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', user.id)
+        .eq('status', 'ACCEPTED');
+
+      if (memberGroupsError) {
+        console.error('Error fetching member groups:', memberGroupsError);
+        throw memberGroupsError;
+      }
+      console.log('Member groups:', memberGroups);
+
+      // Combine group IDs
+      const allGroupIds = [
+        ...(userGroups?.map(g => g.id) || []),
+        ...(memberGroups?.map(g => g.group_id) || [])
+      ];
+
+      // Get members from these groups
+      const { data: groupMembersData, error: groupMembersError } = await supabase
+        .from('group_members')
+        .select('user_id')
+        .eq('status', 'ACCEPTED')
+        .in('group_id', allGroupIds);
+
+      if (groupMembersError) {
+        console.error('Error fetching group members:', groupMembersError);
+        throw groupMembersError;
+      }
+      console.log('Group members data:', groupMembersData);
+
+      // Combine all user IDs (friends and group members)
+      const friendIds = [
+        ...(friendsData?.map(f => f.friend?.id) || []),
+        ...(receivedFriendsData?.map(f => f.friend?.id) || []),
+        ...(groupMembersData?.map(m => m.user_id) || []),
+        user.id // Include own lots
+      ];
+
+      // Remove duplicates
+      const uniqueUserIds = [...new Set(friendIds)];
+      console.log('Unique user IDs to fetch parking lots for:', uniqueUserIds);
+
+      // Fetch parking lots for all users
+      const { data: lots, error: lotsError } = await supabase
         .from('parking_lots')
         .select(`
-          *,
-          users:owner_id (
+          id,
+          street,
+          city,
+          state,
+          zip_code,
+          country,
+          latitude,
+          longitude,
+          price_per_hour,
+          is_available,
+          photo_url,
+          owner:users!parking_lots_owner_id_fkey (
+            id,
             name,
-            email,
-            phone
+            email
           )
-        `);
+        `)
+        .in('owner_id', uniqueUserIds);
 
-      if (error) throw error;
+      if (lotsError) {
+        console.error('Error fetching parking lots:', lotsError);
+        throw lotsError;
+      }
+      console.log('Raw parking lots data:', lots);
 
-      const formattedParkingLots: ParkingLot[] = data.map(lot => ({
+      const formattedLots: ParkingLot[] = lots.map(lot => ({
         id: lot.id,
-        owner_id: lot.owner_id,
-        street: lot.street,
-        city: lot.city,
-        state: lot.state,
-        zip_code: lot.zip_code,
-        country: lot.country,
+        name: `${lot.street}, ${lot.city}`,
+        address: `${lot.street}, ${lot.city}, ${lot.state} ${lot.zip_code}, ${lot.country}`,
         latitude: lot.latitude,
         longitude: lot.longitude,
+        totalSpaces: 1, // Default to 1 space per lot
+        availableSpaces: lot.is_available ? 1 : 0,
+        pricePerHour: lot.price_per_hour,
         photo_url: lot.photo_url,
         is_available: lot.is_available,
-        price_per_hour: lot.price_per_hour,
-        amenities: lot.amenities,
-        notes: lot.notes,
-        created_at: lot.created_at,
-        floor: lot.floor,
-        number: lot.number,
-        restriction: lot.restriction,
-        // Additional UI fields
-        ownerName: lot.users.name,
-        ownerEmail: lot.users.email,
-        ownerPhone: lot.users.phone || '',
+        owner: {
+          id: lot.owner.id,
+          name: lot.owner.name,
+          email: lot.owner.email
+        },
+        isFriendOrGroupMember: lot.owner.id !== user.id
       }));
 
-      setParkingLots(formattedParkingLots);
-    } catch (error) {
-      console.error('Error fetching parking lots:', error);
-    } finally {
-      setLoading(false);
+      console.log('Formatted parking lots:', formattedLots);
+      setParkingLots(formattedLots);
+    } catch (error: any) {
+      console.error('Error in fetchParkingLots:', error?.message || 'Unknown error');
     }
   };
 
@@ -238,27 +341,21 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
 
       const newParkingLot: ParkingLot = {
         id: data.id,
-        owner_id: data.owner_id,
-        street: data.street,
-        city: data.city,
-        state: data.state,
-        zip_code: data.zip_code,
-        country: data.country,
+        name: data.name,
+        address: data.address,
         latitude: data.latitude,
         longitude: data.longitude,
+        totalSpaces: data.total_spaces,
+        availableSpaces: data.available_spaces,
+        pricePerHour: data.price_per_hour,
         photo_url: data.photo_url,
         is_available: data.is_available,
-        price_per_hour: data.price_per_hour,
-        amenities: data.amenities,
-        notes: data.notes,
-        created_at: data.created_at,
-        floor: data.floor,
-        number: data.number,
-        restriction: data.restriction,
-        // Additional UI fields
-        ownerName: data.users.name,
-        ownerEmail: data.users.email,
-        ownerPhone: data.users.phone || '',
+        owner: {
+          id: data.owner.id,
+          name: data.owner.name,
+          email: data.owner.email
+        },
+        isFriendOrGroupMember: data.owner.id !== user.id
       };
       
       setParkingLots(prev => [...prev, newParkingLot]);
@@ -287,7 +384,7 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
         throw new Error("Parking lot not found");
       }
 
-      if (existingLot.owner_id !== user.id) {
+      if (existingLot.owner.id !== user.id) {
         throw new Error("You can only update your own parking lots");
       }
 
@@ -313,27 +410,21 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
 
       const updatedParkingLot: ParkingLot = {
         id: data.id,
-        owner_id: data.owner_id,
-        street: data.street,
-        city: data.city,
-        state: data.state,
-        zip_code: data.zip_code,
-        country: data.country,
+        name: data.name,
+        address: data.address,
         latitude: data.latitude,
         longitude: data.longitude,
+        totalSpaces: data.total_spaces,
+        availableSpaces: data.available_spaces,
+        pricePerHour: data.price_per_hour,
         photo_url: data.photo_url,
         is_available: data.is_available,
-        price_per_hour: data.price_per_hour,
-        amenities: data.amenities,
-        notes: data.notes,
-        created_at: data.created_at,
-        floor: data.floor,
-        number: data.number,
-        restriction: data.restriction,
-        // Additional UI fields
-        ownerName: data.users.name,
-        ownerEmail: data.users.email,
-        ownerPhone: data.users.phone || '',
+        owner: {
+          id: data.owner.id,
+          name: data.owner.name,
+          email: data.owner.email
+        },
+        isFriendOrGroupMember: data.owner.id !== user.id
       };
 
       setParkingLots(prev =>
@@ -397,7 +488,7 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
       const parkingLot = getParkingLotById(parkingLotId);
       if (!parkingLot) throw new Error("Parking lot not found");
   
-      const totalPrice = parkingLot.price_per_hour * hours;
+      const totalPrice = parkingLot.pricePerHour * hours;
   
       // ** Minimal insert + simple select('*') **
       const { data, error } = await supabase
@@ -425,11 +516,11 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
       const newBooking: Booking = {
         id:                data.id,
         parkingLotId:      data.parking_lot_id,
-        parkingLotAddress: `${parkingLot.street}, ${parkingLot.city}, ${parkingLot.state}`,
+        parkingLotAddress: `${parkingLot.address}`,
         renterId:          data.renter_id,
         renterName:        profile?.name || '—',
-        ownerId:           parkingLot.owner_id,
-        ownerName:         parkingLot.ownerName,
+        ownerId:           parkingLot.owner.id,
+        ownerName:         parkingLot.owner.name,
         startTime:         data.start_time,
         duration:          data.duration,
         price:             data.price,
@@ -592,27 +683,21 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
 
       const formattedParkingLots: ParkingLot[] = data.map(lot => ({
         id: lot.id,
-        owner_id: lot.owner_id,
-        street: lot.street,
-        city: lot.city,
-        state: lot.state,
-        zip_code: lot.zip_code,
-        country: lot.country,
+        name: lot.name,
+        address: lot.address,
         latitude: lot.latitude,
         longitude: lot.longitude,
+        totalSpaces: lot.total_spaces,
+        availableSpaces: lot.available_spaces,
+        pricePerHour: lot.price_per_hour,
         photo_url: lot.photo_url,
         is_available: lot.is_available,
-        price_per_hour: lot.price_per_hour,
-        amenities: lot.amenities,
-        notes: lot.notes,
-        created_at: lot.created_at,
-        floor: lot.floor,
-        number: lot.number,
-        restriction: lot.restriction,
-        // Additional UI fields
-        ownerName: lot.users.name,
-        ownerEmail: lot.users.email,
-        ownerPhone: lot.users.phone || '',
+        owner: {
+          id: lot.owner.id,
+          name: lot.owner.name,
+          email: lot.owner.email
+        },
+        isFriendOrGroupMember: lot.owner.id !== user.id
       }));
 
       return formattedParkingLots;
@@ -626,7 +711,7 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
   
   // Filter parking lots owned by a specific user
   const myParkingLots = (userId: string) => {
-    return parkingLots.filter((lot) => lot.owner_id === userId);
+    return parkingLots.filter((lot) => lot.owner.id === userId);
   };
 
   const updateBookingStatus = async (bookingId: string, status: Booking['status']) => {
@@ -658,7 +743,7 @@ export const ParkingProvider: React.FC<ParkingProviderProps> = ({ children }) =>
     <ParkingContext.Provider
       value={{
         parkingLots,
-        myParkingLots: parkingLots.filter(lot => lot.owner_id === user?.id),
+        myParkingLots: parkingLots.filter(lot => lot.owner.id === user?.id),
         bookings,
         loading,
         userType,

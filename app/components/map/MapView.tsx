@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF } from '@react-google-maps/api';
 import type { ParkingLot } from '@/app/providers/ParkingProvider';
+import { useAuth } from '@/app/providers/AuthProvider';
 
 const containerStyle = {
   width: '100%',
@@ -22,6 +23,7 @@ export default function MapView({ parkingLots, center, zoomLevel = 13 }: MapView
   const [selectedMarker, setSelectedMarker] = useState<ParkingLot | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [initialCenter] = useState(center ? { lat: center[0], lng: center[1] } : DEFAULT_CENTER);
+  const { user } = useAuth();
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -35,6 +37,15 @@ export default function MapView({ parkingLots, center, zoomLevel = 13 }: MapView
   const onUnmount = useCallback(() => {
     setMap(null);
   }, []);
+
+  // Filter parking lots based on friends and group members
+  const filteredParkingLots = parkingLots.filter(lot => {
+    // If no user is logged in, show all parking lots
+    if (!user) return true;
+
+    // Show parking lots owned by the user or by friends/group members
+    return lot.owner.id === user.id || lot.isFriendOrGroupMember;
+  });
 
   // Custom marker icons
   const getMarkerIcons = () => {
@@ -89,7 +100,7 @@ export default function MapView({ parkingLots, center, zoomLevel = 13 }: MapView
         fullscreenControl: true
       }}
     >
-      {parkingLots.map((lot) => (
+      {filteredParkingLots.map((lot) => (
         <MarkerF
           key={lot.id}
           position={{
@@ -114,17 +125,17 @@ export default function MapView({ parkingLots, center, zoomLevel = 13 }: MapView
               <div className="mb-3">
                 <img
                   src={selectedMarker.photo_url}
-                  alt={`Parking lot at ${selectedMarker.street}`}
+                  alt={`Parking lot at ${selectedMarker.name}`}
                   className="w-full h-32 object-cover rounded-lg"
                 />
               </div>
             )}
-            <h3 className="font-semibold text-lg mb-1">{selectedMarker.ownerName}的車位</h3>
+            <h3 className="font-semibold text-lg mb-1">{selectedMarker.owner.name}的車位</h3>
             <p className="text-gray-600 text-sm mb-2">
-              {selectedMarker.street}, {selectedMarker.state}
+              {selectedMarker.name}
             </p>
-            <p className={`text-sm font-medium mb-3 ${selectedMarker.is_available ? 'text-green-600' : 'text-red-600'}`}>
-              {selectedMarker.is_available ? '可供使用' : '使用中'}
+            <p className={`text-sm font-medium mb-3 ${selectedMarker.availableSpaces > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {selectedMarker.availableSpaces > 0 ? '可供使用' : '使用中'}
             </p>
             <button 
               onClick={() => window.location.href = `/renter/parking-lot/${selectedMarker.id}`}

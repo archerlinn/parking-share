@@ -1,0 +1,78 @@
+// Friend relationships
+model Friendship {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The user who sent the friend request
+  senderId String
+  sender   User     @relation("SentFriendships", fields: [senderId], references: [id])
+
+  // The user who received the friend request
+  receiverId String
+  receiver   User     @relation("ReceivedFriendships", fields: [receiverId], references: [id])
+
+  // Status of the friendship (pending, accepted, rejected)
+  status FriendshipStatus @default(PENDING)
+
+  @@unique([senderId, receiverId])
+}
+
+// Lucky groups
+model LuckyGroup {
+  id          String   @id @default(cuid())
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  createdBy   User     @relation("CreatedGroups", fields: [createdById], references: [id])
+
+  // Group members
+  members GroupMember[]
+}
+
+// Group members
+model GroupMember {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The group
+  groupId String
+  group   LuckyGroup @relation(fields: [groupId], references: [id])
+
+  // The user
+  userId String
+  user   User     @relation("GroupMemberships", fields: [userId], references: [id])
+
+  // Status of the membership (pending, accepted, rejected)
+  status GroupMemberStatus @default(PENDING)
+
+  @@unique([groupId, userId])
+}
+
+// Add relations to User model
+model User {
+  // ... existing fields ...
+
+  // Friend relationships
+  sentFriendships     Friendship[] @relation("SentFriendships")
+  receivedFriendships Friendship[] @relation("ReceivedFriendships")
+
+  // Group relationships
+  createdGroups LuckyGroup[] @relation("CreatedGroups")
+  groupMemberships GroupMember[] @relation("GroupMemberships")
+}
+
+// Enums
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum GroupMemberStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+} 

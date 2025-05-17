@@ -87,36 +87,33 @@ export default function OwnerDashboardPage() {
                     {/* 圖片 */}
                     <Image
                       src={lot.photo_url || '/placeholder-parking.jpg'}
-                      alt={`停車位 - ${lot.street}`}
+                      alt={`停車位 - ${lot.name}`}
                       width={300}
                       height={200}
                       className="w-full h-48 object-cover rounded-t-lg"
                     />
                     <div className="p-4">
-                      <h3 className="text-lg font-semibold mb-2">
-                        {lot.street}
+                      <h3 className="text-lg font-semibold">
+                        {lot.name}
                       </h3>
-                      <p className="text-gray-600 mb-4">
-                        {lot.city}, {lot.state} {lot.zip_code}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold">${lot.price_per_hour} / 小時</p>
+                      <div className="mt-4">
+                        <p className="text-xs text-gray-500">地址：</p>
+                        <p className="text-sm">
+                          {lot.address}
+                        </p>
+                      </div>
 
-                      {/* 設施列表 */}
-                      {lot.amenities.length > 0 && (
-                        <div className="mt-4">
-                          <p className="text-xs text-gray-500">提供設備：</p>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {lot.amenities.map((amenity, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800"
-                              >
-                                {amenity}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <div className="mt-4">
+                        <p className="text-xs text-gray-500">價格：</p>
+                        <p className="text-lg font-semibold">${lot.pricePerHour}/小時</p>
+                      </div>
+
+                      <div className="mt-4">
+                        <p className="text-xs text-gray-500">狀態：</p>
+                        <p className={`text-sm font-medium ${lot.availableSpaces > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {lot.availableSpaces > 0 ? '可供使用' : '使用中'}
+                        </p>
+                      </div>
 
                       {/* 操作按鈕 */}
                       <div className="mt-6 flex justify-between items-center">
@@ -129,12 +126,12 @@ export default function OwnerDashboardPage() {
                         </Button>
                         <div className="flex space-x-2">
                           <Button
-                            variant={lot.is_available ? 'danger' : 'primary'}
+                            variant={lot.availableSpaces > 0 ? 'danger' : 'primary'}
                             size="sm"
-                            onClick={() => handleAvailabilityToggle(lot.id, lot.is_available)}
+                            onClick={() => handleAvailabilityToggle(lot.id, lot.availableSpaces > 0)}
                             isLoading={loadingStates[lot.id]}
                           >
-                            {lot.is_available ? '標記為佔用' : '標記為可預約'}
+                            {lot.availableSpaces > 0 ? '標記為佔用' : '標記為可預約'}
                           </Button>
                           <Button 
                             variant="secondary" 

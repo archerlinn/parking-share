@@ -5,7 +5,7 @@
   "homepage": "https://archerlinn.github.io/parking-share",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm install --legacy-peer-deps && next build",
     "start": "next start",
     "lint": "next lint"
   },
